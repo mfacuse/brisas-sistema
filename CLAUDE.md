@@ -11,6 +11,10 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Toda regla nueva o cambiada lleva su prueba automática.
 
 ## Cómo está instalado hoy (importante)
+- **Desde el 2026-10-14 el sistema de trabajo está en la NUBE (Render): https://brisas.onrender.com** (dominio sistema.invercochile.com
+  pendiente: el DNS lo administra Hostname/INC, ns0X.inc.cl, no GoDaddy). Base PostgreSQL de Render; Drive conectado con la cuenta de Matías.
+  Los cambios de código se suben a GitHub (mfacuse/brisas-sistema; el `git push` lo hace Matías) y Render los instala solo.
+  El sistema del Mac quedó APAGADO y con datos antiguos (solo emergencias; el lanzador pide confirmar). Lo de abajo describe el modo oficina.
 - El sistema corre en el MacBook de Matías, en esta misma carpeta, en «modo oficina»: doble clic en `Iniciar_Brisas.command` deja encendido waitress en el
   puerto 8000 con DEBUG apagado y hace respaldos de la base cada 6 horas en la subcarpeta `Respaldos/` de esta misma carpeta. Detalle en `README.md` y `ACCESO_REMOTO.md`.
 - **Después de cambiar código hay que reiniciar el sistema** (cerrar la ventana negra del lanzador y volver a hacer doble clic); no se recarga solo.

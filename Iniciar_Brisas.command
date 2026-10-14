@@ -8,6 +8,18 @@ echo "  Brisas del Centro · contratos y facturación"
 echo "=============================================="
 PUERTO=8000
 
+# Desde el 14-10-2026 el sistema funciona en la nube. El del Mac queda solo para emergencias (sus datos ya no se actualizan).
+echo
+echo "  EL SISTEMA AHORA ESTÁ EN LA NUBE:  https://brisas.onrender.com"
+echo "  (pronto también en https://sistema.invercochile.com)"
+echo
+echo "  Este sistema del Mac tiene datos ANTIGUOS (hasta el 14-10-2026). Úselo solo si se lo pidieron."
+read -r -p "  ¿Encender igual el sistema del Mac? Escriba SI y presione Enter (cualquier otra cosa cierra): " RESPUESTA
+if [ "$RESPUESTA" != "SI" ] && [ "$RESPUESTA" != "si" ]; then
+  open "https://brisas.onrender.com"
+  exit 0
+fi
+
 # El entorno de Python vive fuera de Google Drive (Python no puede crearlo en una ruta con «:» y no lleva datos: se recrea solo).
 VENV="${BRISAS_VENV:-$HOME/Brisas_python}"
 if [ ! -f "$VENV/bin/activate" ]; then
