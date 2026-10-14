@@ -1,0 +1,18 @@
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Inicio · Brisas del Centro{% endblock %}
+{% block contenido %}<h1>Panel del mes</h1><p class="sub">Siga los cinco pasos del mes de arriba hacia abajo; cada tarjeta lleva a su pantalla.</p>
+{% include 'panel/_selector.html' %}
+<div class="steps">{% for s in pasos %}<a class="step {% if s.ok %}ok{% endif %}" href="{% url s.url %}?{{ qs }}"><b>{{ s.n }}. {{ s.titulo }} {% if s.ok %}✓{% endif %}</b><span>{{ s.texto }}</span></a>{% endfor %}</div>
+<h2>Facturación de {{ periodo|mes }}</h2>
+<div class="grid g4"><div class="card kpi"><div class="n">{{ docs_n }}</div><div class="l">documentos</div></div>
+<div class="card kpi"><div class="n">{{ tot.neto|default:0|clp }}</div><div class="l">neto</div></div>
+<div class="card kpi"><div class="n">{{ tot.iva|default:0|clp }}</div><div class="l">IVA</div></div>
+<div class="card kpi"><div class="n">{{ tot.total|default:0|clp }}</div><div class="l">total</div></div></div>
+<div class="grid g4" style="margin-top:12px"><div class="card kpi"><div class="n">{{ por_estado.B }}</div><div class="l">borradores</div></div>
+<div class="card kpi"><div class="n">{{ por_estado.A }}</div><div class="l">aprobados</div></div>
+<div class="card kpi"><div class="n">{{ por_estado.X }}</div><div class="l">exportados</div></div>
+<div class="card kpi"><div class="n">{{ medidores_pend }}</div><div class="l"><a href="{% url 'medidores' %}">medidores por confirmar</a></div></div></div>
+<h2>Contratos que requieren atención</h2>
+{% if alertas %}<div class="tw"><table><tr><th>Contrato</th><th>Nivel</th><th>Aviso</th></tr>{% for cod, nom, nivel, txt in alertas %}
+<tr><td class="nowrap"><a href="{% url 'contrato' cod %}">{{ cod }}</a> {{ nom }}</td><td><span class="badge {% if nivel == 'ALTA' %}b-bad{% else %}b-warn{% endif %}">{{ nivel }}</span></td><td>{{ txt }}</td></tr>{% endfor %}</table></div>
+<p class="small"><a href="{% url 'alertas' %}">Ver todas las alertas</a></p>{% else %}<p class="muted">Sin alertas urgentes en los próximos 90 días.</p>{% endif %}
+{% endblock %}

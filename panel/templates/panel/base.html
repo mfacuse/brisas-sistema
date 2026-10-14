@@ -1,0 +1,26 @@
+{% load static formato %}<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{% block titulo %}Brisas del Centro{% endblock %}</title>
+<meta name="theme-color" content="#1f3a5f"><link rel="manifest" href="{% url 'manifest' %}">
+<link rel="icon" href="{% static 'panel/icon-192.png' %}"><link rel="apple-touch-icon" href="{% static 'panel/icon-192.png' %}">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="{% static 'panel/app.css' %}"></head><body>
+{% if user.is_authenticated %}
+<header class="top"><div class="bar"><div class="brand">Brisas del Centro</div>
+<nav>{% with p=request.resolver_match.url_name %}
+<a href="{% url 'inicio' %}?{{ qs }}" class="{% if p == 'inicio' %}on{% endif %}">Inicio</a>
+<a href="{% url 'facturacion' %}?{{ qs }}" class="{% if p == 'facturacion' or p == 'documento' %}on{% endif %}">Facturación</a>
+<a href="{% url 'cargas' %}?{{ qs }}" class="{% if p == 'cargas' %}on{% endif %}">Cargas</a>
+<a href="{% url 'contratos' %}?{{ qs }}" class="{% if p == 'contratos' or p == 'contrato' %}on{% endif %}">Contratos</a>
+<a href="{% url 'plano' %}?{{ qs }}" class="{% if p == 'plano' %}on{% endif %}">Plano</a>
+<a href="{% url 'alertas' %}" class="{% if p == 'alertas' %}on{% endif %}">Alertas</a>
+<a href="{% url 'medidores' %}" class="{% if p == 'medidores' %}on{% endif %}">Medidores</a>
+<a href="{% url 'indicadores' %}?{{ qs }}" class="{% if p == 'indicadores' %}on{% endif %}">UF / IPC</a>
+{% if user.is_staff %}<a href="/admin/">Administración</a>{% endif %}{% endwith %}</nav>
+<div class="who"><a href="{% url 'configurar_2fa' %}" title="Verificación en dos pasos">{{ user.get_username }}</a> · {{ rol }} · <form class="inline" method="post" action="{% url 'logout' %}">{% csrf_token %}<button class="btn sm sec" style="color:#fff;border-color:#6d89b3">Salir</button></form></div></div></header>
+{% endif %}
+<main>{% for m in messages %}<div class="msg {{ m.tags }}">{{ m }}</div>{% endfor %}
+{% block contenido %}{% endblock %}</main>
+<script>if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(()=>{})}</script>
+</body></html>

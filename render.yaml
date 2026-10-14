@@ -1,0 +1,71 @@
+# Render: sistema de Brisas del Centro en la nube (ver docs/nube-render.md)
+envVarGroups:
+  - name: brisas-config
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.5"
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_HTTPS
+        value: "1"
+      - key: DJANGO_2FA
+        value: "1"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: sistema.invercochile.com
+      - key: DJANGO_CSRF_ORIGINS
+        value: https://sistema.invercochile.com
+      - key: DJANGO_CARPETAS_RAIZ
+        value: ""
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false          # se pega en el panel de Render (clave de la cuenta de servicio de Google)
+      - key: ANTHROPIC_API_KEY
+        sync: false          # clave de la IA
+
+services:
+  - type: web
+    name: brisas
+    runtime: python
+    region: virginia
+    plan: starter
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    preDeployCommand: python manage.py migrate --noinput && python manage.py crear_roles
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 180
+    healthCheckPath: /login/
+    disk:
+      name: datos
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - fromGroup: brisas-config
+      - key: DATABASE_URL
+        fromDatabase:
+          name: brisas-db
+          property: connectionString
+      - key: DJANGO_MEDIA_ROOT
+        value: /var/data/salidas
+      - key: BRISAS_SECRETOS_DIR
+        value: /var/data
+
+  - type: cron
+    name: brisas-diario
+    runtime: python
+    region: virginia
+    plan: starter
+    schedule: "0 11 * * *"   # todos los días a las 8:00 de Chile (11:00 UTC; 7:00 en horario de invierno)
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py tareas_diarias
+    envVars:
+      - fromGroup: brisas-config
+      - key: DATABASE_URL
+        fromDatabase:
+          name: brisas-db
+          property: connectionString
+
+databases:
+  - name: brisas-db
+    region: virginia
+    plan: basic-256mb
+    databaseName: brisas
+    postgresMajorVersion: "17"

@@ -1,0 +1,7 @@
+{% load formato %}
+<div class="toolbar"><form method="get">
+<label class="small muted">Sociedad</label><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select>
+<a class="btn sec sm" href="?sociedad={{ sociedad.id }}&periodo={{ mes_prev|date:'Y-m' }}">◀</a>
+<input type="month" name="periodo" value="{{ periodo|date:'Y-m' }}" onchange="this.form.submit()">
+<a class="btn sec sm" href="?sociedad={{ sociedad.id }}&periodo={{ mes_sig|date:'Y-m' }}">▶</a>
+<strong>{{ periodo|mes }}</strong></form>{{ extra_toolbar|default:"" }}</div>

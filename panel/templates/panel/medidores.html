@@ -1,0 +1,7 @@
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Medidores · Brisas del Centro{% endblock %}
+{% block contenido %}<h1>Medidores de luz y gas</h1><p class="sub">Cada fila de las planillas del proveedor se asigna a un contrato. Confirme (o corrija) cada asignación; mientras esté por confirmar, las facturas que la usan quedan con advertencia.</p>
+<div class="tw"><table><tr><th>Servicio</th><th>Nº local (planilla)</th><th>Nombre (planilla)</th><th>Tarifa</th><th>Contrato</th><th>Observación</th><th>Estado</th></tr>
+{% for m in meds %}<tr><td>{{ m.get_servicio_display }}</td><td class="small">{{ m.etiqueta_local|default:"—" }}</td><td>{{ m.nombre_planilla }}</td><td class="small">{{ m.tarifa|default:"—" }}</td>
+<td>{% if puede_operar %}<form class="inline" method="post" action="{% url 'medidor_accion' m.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="confirmar"><select name="contrato">{% for c in contratos %}<option value="{{ c.codigo }}" {% if c == m.contrato %}selected{% endif %}>{{ c.codigo }} {{ c.nombre_fantasia }}</option>{% endfor %}</select>
+<button class="btn sm {% if m.confirmado %}sec{% endif %}">{% if m.confirmado %}Guardar{% else %}Confirmar{% endif %}</button></form>{% else %}{{ m.contrato.codigo }} {{ m.contrato.nombre_fantasia }}{% endif %}</td>
+<td class="small">{{ m.nota }}</td><td>{% if m.confirmado %}<span class="badge b-ok">confirmado</span>{% else %}<span class="badge b-warn">por confirmar</span>{% endif %}</td></tr>{% endfor %}</table></div>{% endblock %}

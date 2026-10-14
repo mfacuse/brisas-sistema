@@ -1,0 +1,19 @@
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}{{ d.contrato.codigo }} · {{ d.periodo|mes }}{% endblock %}
+{% block contenido %}<p class="small"><a href="{% url 'facturacion' %}?sociedad={{ sociedad.id }}&periodo={{ d.periodo|date:'Y-m' }}">← Facturación de {{ d.periodo|mes }}</a></p>
+<h1>{{ d.contrato.codigo }} · {{ d.contrato.nombre_fantasia }} <span class="badge b-{{ d.estado }}">{{ d.get_estado_display }}</span></h1>
+<p class="sub">{{ d.contrato.arrendatario.razon_social }} · RUT {{ d.contrato.arrendatario.rut }} · <a href="{% url 'contrato' d.contrato.codigo %}">ver contrato</a></p>
+<div class="grid g2"><div class="card"><dl class="kv"><dt>Documento</dt><dd>{% if d.tipo_documento == 'FA' %}Factura afecta{% elif d.tipo_documento == 'FE' %}Factura exenta{% elif d.tipo_documento == 'NC' %}Nota de cobro (sin factura){% else %}{{ d.tipo_documento }}{% endif %}</dd>
+<dt>N.º interno</dt><dd>{% if d.numero_interno %}<b>{{ d.numero_interno }}</b>{% else %}<span class="muted">se asigna al aprobar</span>{% endif %}</dd>
+{% if d.tipo_documento != 'NC' %}<dt>Folio SII</dt><dd>{% if d.folio %}<b>{{ d.folio }}</b>{% if d.emitida %} · <a href="{% url 'emitida_abrir' d.emitida.pk %}" target="_blank">ver factura emitida (PDF)</a>{% endif %}{% else %}<span class="muted">aún sin factura emitida vinculada</span>{% endif %}</dd>{% else %}<dt>Nota de cobro</dt><dd><a href="{% url 'nota_cobro_pdf' d.pk %}" target="_blank">📄 {% if d.estado == 'B' %}Ver borrador en PDF{% else %}Descargar PDF{% endif %}</a></dd>{% endif %}<dt>Período</dt><dd>{{ d.periodo|mes }}</dd>
+<dt>Glosa</dt><dd>{{ d.glosa }}</dd><dt>Dirección</dt><dd>{{ d.contrato.direccion_contrato|default:"—" }}</dd>
+{% if d.aprobado_por %}<dt>Aprobado</dt><dd>{{ d.aprobado_por }} · {{ d.aprobado_en|date:"d-m-Y H:i" }}</dd>{% endif %}</dl></div>
+<div class="card"><dl class="kv"><dt>Neto</dt><dd>{{ d.neto|clp }}</dd><dt>Exento</dt><dd>{{ d.exento|clp }}</dd><dt>IVA</dt><dd>{{ d.iva|clp }}</dd><dt><b>Total</b></dt><dd><b>{{ d.total|clp }}</b></dd></dl></div></div>
+{% for a in graves %}<div class="warnbox">⚠ {{ a }}</div>{% endfor %}{% for a in notas %}<div class="notebox">{{ a }}</div>{% endfor %}
+<h2>Líneas de la factura</h2><div class="tw"><table><tr><th>#</th><th>Concepto</th><th>Cómo se calculó</th><th class="r">Neto</th></tr>
+{% for l in lineas %}<tr><td>{{ l.orden }}</td><td><b>{{ l.concepto }}</b></td><td class="det">{{ l.detalle }}</td><td class="r">{{ l.neto|clp }}</td></tr>{% endfor %}</table></div>
+{% if puede_operar %}<div class="toolbar" style="margin-top:14px">
+{% if d.estado == 'B' %}<form class="inline" method="post" action="{% url 'documento_accion' d.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="aprobar"><button class="btn" {% if graves and not puede_forzar %}disabled{% endif %}>Aprobar</button>
+{% if graves and puede_forzar %}<button class="btn warn" name="forzar" value="1">Aprobar igual (administrador)</button>{% endif %}</form>{% endif %}
+{% if d.estado == 'A' %}<form class="inline" method="post" action="{% url 'documento_accion' d.pk %}">{% csrf_token %}<input type="hidden" name="accion" value="borrador"><button class="btn sec">Volver a borrador</button></form>{% endif %}
+{% if puede_forzar and d.estado != 'X' %}<form class="inline" method="post" action="{% url 'documento_accion' d.pk %}" onsubmit="return confirm('¿Anular este documento?')">{% csrf_token %}<input type="hidden" name="accion" value="anular"><button class="btn bad sm">Anular</button></form>{% endif %}</div>{% endif %}
+{% endblock %}

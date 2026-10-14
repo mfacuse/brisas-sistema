@@ -1,0 +1,17 @@
+Django>=5.2
+openpyxl>=3.1
+xlrd>=2.0
+certifi>=2024.2.2
+whitenoise>=6.6
+waitress>=3.0
+fpdf2>=2.8
+pypdf>=6.0
+anthropic>=1.13
+ezdxf>=1.4
+google-api-python-client>=2.150
+google-auth>=2.35
+segno>=1.6
+pyotp>=2.9
+# Solo en el servidor de la nube (Linux): base PostgreSQL y servidor web
+psycopg[binary]>=3.2; sys_platform == "linux"
+gunicorn>=23; sys_platform == "linux"

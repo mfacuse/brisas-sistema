@@ -1,0 +1,19 @@
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Contratos · Brisas del Centro{% endblock %}
+{% block contenido %}<h1>Contratos</h1><p class="sub">{{ filas|length }} contratos {% if not solo %}de {{ sociedad.nombre }}{% else %}de todas las sociedades{% endif %}. Toque un contrato para ver su detalle y simular su factura de cualquier mes.</p>
+<div class="toolbar"><form method="get"><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select>
+<input type="text" name="q" value="{{ q }}" placeholder="Buscar: código, local, razón social, RUT"> <label class="small"><input type="checkbox" name="sociedad_todas" value="1" {% if solo %}checked{% endif %} onchange="this.form.submit()"> todas las sociedades</label>
+<button class="btn sm">Buscar</button></form>
+<a class="btn sm sec" href="{% url 'actas' %}?sociedad={{ sociedad.id }}">Actas de entrega</a>
+<a class="btn sm sec" href="{% url 'archivos' %}?sociedad={{ sociedad.id }}">Archivos de contratos{% if archivos_pendientes %} ({{ archivos_pendientes }} por revisar){% endif %}</a>
+{% if puede_operar %}<form method="post" action="{% url 'revisar_carpeta' %}">{% csrf_token %}<input type="hidden" name="sociedad" value="{{ sociedad.id }}"><input type="hidden" name="volver" value="{% url 'contratos' %}?sociedad={{ sociedad.id }}"><button class="btn sm" {% if not sociedad.carpeta_contratos %}disabled title="Sin carpeta configurada"{% endif %}>Actualizar desde la carpeta</button></form>{% endif %}
+<a class="btn sm sec" href="{% url 'configuracion' %}">Carpetas y configuración</a></div>
+{% if archivos_pendientes %}<div class="warnbox"><b>{{ archivos_pendientes }} archivo(s) nuevos o cambiados</b> en la carpeta de contratos de {{ sociedad.nombre }}. <a href="{% url 'archivos' %}?sociedad={{ sociedad.id }}">Revisarlos</a></div>{% endif %}
+{% if propuestas_listas %}<div class="notebox"><b>{{ propuestas_listas }} propuesta(s) de la IA</b> esperan revisión. <a href="{% url 'archivos' %}?sociedad={{ sociedad.id }}">Ver</a></div>{% endif %}
+{% if not sociedad.carpeta_contratos %}<div class="notebox">{{ sociedad.nombre }} no tiene carpeta de contratos configurada. <a href="{% url 'configuracion' %}">Configurarla</a></div>{% endif %}
+<div class="tw"><table><tr><th>Código</th><th>Fantasía</th><th>Arrendatario</th><th>Locales</th><th class="r">m²</th><th>Renta hoy</th><th>Tipo</th><th>Documento</th><th>Vigencia</th><th>Archivos originales</th></tr>
+{% for f in filas %}{% with c=f.c %}<tr><td><a href="{% url 'contrato' c.codigo %}"><b>{{ c.codigo }}</b></a></td><td>{{ c.nombre_fantasia }}</td><td class="small">{{ c.arrendatario.razon_social }}<br><span class="muted">{{ c.arrendatario.rut }}</span></td>
+<td class="small">{{ f.locales }}</td><td class="r">{{ c.m2_cobro|num:1 }}</td>
+<td class="nowrap">{% if f.tramo %}{% if f.tramo.unidad == 'UF' %}{{ f.tramo.monto|uf }} UF{% else %}{{ f.tramo.monto|clp }}{% endif %}{% else %}—{% endif %}</td>
+<td class="small">{{ c.get_tipo_renta_display }}{% if c.periodicidad == 'S' %} · semestral{% endif %}{% if c.pct_variable %} · {{ c.pct_variable|pct }}{% endif %}</td>
+<td>{{ c.tipo_documento }}</td><td class="small nowrap">desde {{ c.inicio_vigencia|fecha }}{% if not c.activo %}<br><span class="badge b-bad">inactivo</span>{% endif %}</td>
+<td class="pdfs">{% for a in c.archivos.all %}<a href="{% url 'archivo_abrir' a.pk %}" target="_blank" title="{{ a.nombre }}">📄 {{ a.nombre|truncatechars:34 }}</a>{% if a.pendiente %}<span class="badge b-warn">{% if a.estado == 'N' %}nuevo{% else %}cambiado{% endif %}</span>{% endif %}<br>{% empty %}<span class="muted small">—</span>{% endfor %}</td></tr>{% endwith %}{% endfor %}</table></div>{% endblock %}

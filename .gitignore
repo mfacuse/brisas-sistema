@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+db.sqlite3
+salidas/
+*.pyc
+.clave_secreta
+staticfiles/
+respaldos/
+.DS_Store
+.claude/settings.local.json
+Respaldos/
+.token_bcentral
+.clave_anthropic
+# datos de trabajo: nunca al repositorio de código
+*.sqlite3
+datos/
+Boulevard/
+15 Oriente/
+*.dwg
+*.dxf
+.env
