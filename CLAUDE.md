@@ -38,7 +38,9 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Probar con una copia de la base sin tocar la de trabajo: `DATABASE_URL=sqlite:////ruta/copia.sqlite3 python manage.py ...`
 
 ## Nube (en preparación, 2026-10-14): Render, ver `docs/nube-render.md`
-- Mismo código para Mac y nube. Carpetas vía `maestro/almacen.py` (Mac o `gdrive:<id>` con cuenta de servicio de Google).
+- Mismo código para Mac y nube. Carpetas vía `maestro/almacen.py` (Mac o `gdrive:<id>`). Drive se conecta con la cuenta Google de Matías
+  (OAuth, solo lectura, botón en Carpetas y configuración; `panel/vistas_drive.py`): la política de Inverco bloquea claves de cuentas de servicio.
+  Para conectar desde el Mac, abrir el sistema en http://localhost:8000 (no 127.0.0.1). `.google_*.json` son privados como `.clave_secreta`.
 - `render.yaml`: web (gunicorn) + PostgreSQL + disco `/var/data` + tarea diaria `tareas_diarias`. Variables `DJANGO_HTTPS=1`, `DJANGO_2FA=1`.
 - Verificación en dos pasos y bloqueo de ingreso en `panel/seguridad.py` (obligatoria solo si `DJANGO_2FA=1`).
 - Mudanza de datos: `preparar_nube` (solo sobre una copia) + `loaddata`. Las claves privadas van en `BRISAS_SECRETOS_DIR`.

@@ -18,8 +18,10 @@ envVarGroups:
         value: ""
       - key: DJANGO_SECRET_KEY
         generateValue: true
-      - key: GOOGLE_SERVICE_ACCOUNT_JSON
-        sync: false          # se pega en el panel de Render (clave de la cuenta de servicio de Google)
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false          # ID del cliente web «Sistema Brisas» (Google Cloud › Credenciales)
+      - key: GOOGLE_OAUTH_CLIENT_SECRET
+        sync: false
       - key: ANTHROPIC_API_KEY
         sync: false          # clave de la IA
 
