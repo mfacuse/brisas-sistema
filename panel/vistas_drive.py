@@ -26,8 +26,14 @@ def _volver(request):
 
 
 def _post(url, datos: dict) -> dict:
+    import ssl
+    try:   # certificados de `certifi` (el Python de python.org en macOS no trae los del sistema)
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except ImportError:
+        ctx = ssl.create_default_context()
     req = urllib.request.Request(url, data=urllib.parse.urlencode(datos).encode(), method='POST')
-    with urllib.request.urlopen(req, timeout=20) as r:
+    with urllib.request.urlopen(req, timeout=20, context=ctx) as r:
         return json.loads(r.read().decode())
 
 
