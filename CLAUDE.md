@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (126 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (127 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -88,7 +88,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   Si la hoja se llama como un mes («AGO26») y no coincide con el mes de consumo indicado, la carga se rechaza.
 - Plano (menú «Plano»): `maestro/planos.py` lee los .dxf de la carpeta de planos de cada propiedad (al encender, solo si cambian): rótulo «LOCAL XX» +
   figura cerrada de la capa A-AUXILIAR. Verde ocupado, amarillo < 4 meses de vigencia, rojo vacío; clic → contrato. Boulevard: Sistema Facturacion/Boulevard/Planos
-  (101 subterráneo y 201 elevaciones se omiten: sin locales). Plaza Motor: Sistema Facturacion/15 Oriente/Planos; su plano no trae contornos cerrados, se trazaron en `locales_plano.json` (misma carpeta). Vínculo contrato↔local en «Editar condiciones».
+  (101 subterráneo y 201 elevaciones se omiten: sin locales). Plaza Motor: Sistema Facturacion/15 Oriente/Planos; su plano no trae contornos cerrados, se trazaron en `locales_plano.json` (misma carpeta). Locales divididos (Boulevard 1A/1B y 11A/11B, 2026-10-14): «divisiones» en Boulevard/Planos/locales_plano.json (metros del dibujo). Vínculo contrato↔local en «Editar condiciones».
 - Cargas: semáforo por local (luz/gas por consumo, otros por monto; mes vs anterior): verde ≤ 10 %, amarillo ≤ 20 %, rojo > 20 % (`comparacion.py`).
 - Renta variable: el mes M cobra el mínimo de M más la diferencia entre (% × ventas netas de M-1) y el mínimo de M-1.
 - Luz, gas y agua: el consumo del mes M se cobra en la factura de M+1, a costo, con IVA en facturas afectas; exentas y notas de cobro, sin IVA.

@@ -493,6 +493,32 @@ class PlanoTest(Base):
         self.assertContains(r, '<polygon', count=3)
         self.assertContains(r, 'Disponible')
 
+    def test_local_dividido_en_a_y_b(self):
+        """Boulevard 1 y 11 se arriendan en dos partes (1A/1B, 11A/11B): se dividen con «divisiones» de locales_plano.json."""
+        import ezdxf, json
+        from . import planos
+        from .models import Local, PlanoPiso
+        carpeta = self.raiz / 'Planos'
+        carpeta.mkdir()
+        doc = ezdxf.new()
+        doc.header['$INSUNITS'] = 5
+        msp = doc.modelspace()
+        msp.add_lwpolyline([(0, 0), (1000, 0), (1000, 1000), (0, 1000)], close=True, dxfattribs={'layer': 'A-AUXILIAR'})
+        msp.add_text('LOCAL 01', dxfattribs={'layer': 'TEXTO', 'insert': (500, 500)})
+        doc.saveas(carpeta / 'piso1.dxf')
+        (carpeta / 'locales_plano.json').write_text(json.dumps({'piso1.dxf': {'divisiones': {'1': {
+            '1A': [[0, 0], [10, 0], [10, 6], [0, 6]], '1B': [[0, 6], [10, 6], [10, 10], [0, 10]]}}}}))
+        a = Local.objects.create(propiedad=self.prop, codigo_plano='L01-A (1A)', piso='Primer piso')
+        b = Local.objects.create(propiedad=self.prop, codigo_plano='L01-B (1B)', piso='Primer piso')
+        self.prop.carpeta_planos = str(carpeta)
+        self.prop.save()
+        planos.importar_propiedad(self.prop)
+        lp = {x.etiqueta: x for x in PlanoPiso.objects.get().locales_plano.all()}
+        self.assertEqual(sorted(lp), ['1A', '1B'])
+        self.assertEqual((lp['1A'].m2_plano, lp['1B'].m2_plano), (D('60.0'), D('40.0')))
+        self.assertEqual((list(lp['1A'].locales.all()), list(lp['1B'].locales.all())), ([a], [b]))
+        self.assertEqual(planos.locales_para(self.prop, '1'), [a, b])   # sin letra: ambos
+
 
 # ------------------------------------------------------------------ Google Drive (con un Drive simulado: no se conecta a Google)
 class DriveFalso:

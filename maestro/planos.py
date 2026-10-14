@@ -4,7 +4,8 @@ Cómo reconoce los locales: busca los rótulos «LOCAL 06», «LOCAL 23», «LOC
 rótulo (de preferencia en la capa de superficies auxiliares, que en los planos de Boulevard calza con los m² escritos). Si un local no
 tiene contorno dibujado, se usa la forma de un vecino con los mismos m² o un cuadro del tamaño de sus m² (marcado «aproximado»).
 Los planos sin rótulos de locales (elevaciones, cortes) se omiten. Si el plano no trae contornos cerrados (p. ej. Plaza Motor, dibujado con
-líneas sueltas), se usan los contornos trazados una vez en «locales_plano.json» de la misma carpeta (coordenadas del dibujo). Unidades del dibujo: centímetros ($INSUNITS = 5) o metros (6).
+líneas sueltas), se usan los contornos trazados una vez en «locales_plano.json» de la misma carpeta (coordenadas del dibujo). Ese archivo
+también puede traer «divisiones»: locales que en el plano son uno solo pero se arriendan en partes (Boulevard 1A/1B y 11A/11B). Unidades del dibujo: centímetros ($INSUNITS = 5) o metros (6).
 """
 import os
 import re
@@ -101,9 +102,11 @@ def _unidades(ruta: str) -> float:
 
 def locales_para(propiedad, etiqueta: str):
     qs = Local.objects.filter(propiedad=propiedad)
-    num = re.match(r'\d+', etiqueta)
+    num = re.match(r'(\d+)-?([A-Z]?)$', etiqueta)
     if num:
-        n = int(num.group())
+        n, letra = int(num.group(1)), num.group(2)
+        if letra:   # local dividido: «1A» → L01-A / L1A
+            return [l for l in qs if re.match(rf'^L0*{n}-?{letra}(?![0-9A-Za-z])', l.codigo_plano)]
         return [l for l in qs if re.match(rf'^L0*{n}(?![0-9])', l.codigo_plano)]
     return [l for l in qs if re.match(rf'^M[óo]dulo {etiqueta}\b', l.codigo_plano)]
 
@@ -119,14 +122,16 @@ def importar_archivo(propiedad, ruta: str, nombre: str = '', modificado=None, tr
     """Lee un plano (del Mac o de Google Drive). `trazados`: contenido de locales_plano.json de la carpeta (o None)."""
     local, temporal = almacen.archivo_local(ruta)
     try:
-        return _importar(propiedad, ruta, local, nombre or Path(local).name, modificado, (trazados or {}).get(nombre or Path(local).name))
+        entrada = (trazados or {}).get(nombre or Path(local).name) or {}
+        return _importar(propiedad, ruta, local, nombre or Path(local).name, modificado,
+                         entrada if entrada.get('locales') else None, entrada.get('divisiones'))
     finally:
         if temporal:
             os.unlink(local)
 
 
 @transaction.atomic
-def _importar(propiedad, ruta: str, local: str, nombre: str, modificado, trazado):
+def _importar(propiedad, ruta: str, local: str, nombre: str, modificado, trazado, divisiones=None):
     k = _unidades(local)
     rotulos, m2s, polis, fondo, textos = leer_dxf(local)
     if trazado:
@@ -167,6 +172,13 @@ def _importar(propiedad, ruta: str, local: str, nombre: str, modificado, trazado
             x, y = h['p']
             h['pts'] = [(x - lado / 2, y - lado / 2), (x + lado / 2, y - lado / 2), (x + lado / 2, y + lado / 2), (x - lado / 2, y + lado / 2)]
             h['m2'] = m2_maestro or h['m2']
+    # locales divididos (p. ej. 1 → 1A y 1B): contornos de cada parte en «divisiones» de locales_plano.json, en metros del dibujo
+    for et, partes in (divisiones or {}).items():
+        if et in hallados:
+            del hallados[et]
+            for sub, pts in partes.items():
+                pts = [tuple(x) for x in pts]
+                hallados[sub] = dict(p=_centro(pts), pts=pts, m2=round(_area(pts), 1), aprox=False)
     # límites: los locales más el deslinde del terreno
     todos = [pt for h in hallados.values() for pt in h['pts']]
     minx, maxx = min(x for x, _ in todos), max(x for x, _ in todos)
