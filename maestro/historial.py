@@ -28,6 +28,12 @@ SEGUIDOS = {
 }
 
 
+def _seguir_facturacion():
+    from facturacion.models import FechaUFMes
+    SEGUIDOS[FechaUFMes] = ('Fecha de la UF del mes', lambda o: None, {'cambiado_en'})
+
+
+
 @contextmanager
 def con_origen(origen: str, usuario: str = ''):
     """Marca los cambios hechos dentro del bloque: with con_origen('importador'): ..."""
@@ -106,6 +112,7 @@ def _borrado(sender, instance, **kw):
 
 
 def conectar():
+    _seguir_facturacion()
     for modelo in SEGUIDOS:
         pre_save.connect(_antes, sender=modelo, dispatch_uid=f'hist_pre_{modelo.__name__}')
         post_save.connect(_despues, sender=modelo, dispatch_uid=f'hist_post_{modelo.__name__}')

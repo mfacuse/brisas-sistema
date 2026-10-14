@@ -29,7 +29,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (105 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (106 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -59,7 +59,8 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `panel/`: pantallas, plantillas, roles (`permisos.py`) y PWA. `config/`: ajustes (variables de entorno `DJANGO_*`).
 
 ## Reglas que no se pueden romper (detalle en `docs/`)
-- Renta en UF + IVA 19 %; UF del día 1 del mes (o del primer día hábil si el contrato lo dice, como Mundo). Cálculo con `Decimal`, nunca `float`;
+- Renta en UF + IVA 19 %; UF del día 1 del mes (o del primer día hábil si el contrato lo dice, como Mundo). En Facturación se puede fijar a mano
+  otra fecha de UF para una sociedad y mes (`FechaUFMes`): se aplica a TODOS sus contratos ese mes, incluso los de primer día hábil (Matías, 2026-10-14). Cálculo con `Decimal`, nunca `float`;
   redondeo al peso «mitad hacia arriba» (`peso()` en `motor.py`).
 - Prorrata por días en el primer y el último mes y cuando la renta cambia a mitad de mes (modo PR; el modo IM aplica la renta vigente el día 1).
   Falta confirmar cuál corresponde a B-13 y B-20.

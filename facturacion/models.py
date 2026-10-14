@@ -222,3 +222,21 @@ class CargaPlanilla(models.Model):
 
     class Meta:
         ordering = ['-creada']
+
+
+class FechaUFMes(models.Model):
+    """Fecha de la UF elegida a mano para una sociedad y mes (por defecto se usa el día 1, o el primer día hábil si el contrato lo dice).
+    Se aplica a todos los contratos de la sociedad ese mes (decisión del propietario, 14-10-2026)."""
+    sociedad = models.ForeignKey('maestro.Sociedad', on_delete=models.CASCADE, related_name='fechas_uf')
+    periodo = models.DateField('mes facturado (día 1)')
+    fecha = models.DateField('fecha de la UF')
+    usuario = models.CharField(max_length=80, blank=True)
+    cambiado_en = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = [('sociedad', 'periodo')]
+        verbose_name = 'fecha de la UF del mes'
+        verbose_name_plural = 'fechas de la UF elegidas por mes'
+
+    def __str__(self):
+        return f'{self.sociedad.nombre} {self.periodo:%m/%Y}: UF del {self.fecha:%d-%m-%Y}'

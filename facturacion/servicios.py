@@ -12,7 +12,7 @@ from indicadores import servicio as ind
 from maestro.models import Contrato
 
 from . import motor
-from .models import ConsumoServicio, Correlativo, Documento, LineaDocumento, VentaMensual
+from .models import ConsumoServicio, Correlativo, Documento, FechaUFMes, LineaDocumento, VentaMensual
 
 D = Decimal
 
@@ -25,7 +25,8 @@ def a_contrato_d(c: Contrato) -> motor.ContratoD:
         periodicidad=c.periodicidad, meses_cobro=c.meses_cobro_lista, reajuste_ipc=c.reajuste_ipc,
         pct_variable=c.pct_variable, base_variable=c.base_variable, variable_desde=c.variable_desde, modo_cambio=c.modo_cambio_tramo,
         regla_uf=c.regla_uf, tipo_documento=c.tipo_documento, inicio_cobro=c.fecha_inicio_cobro,
-        renovacion_automatica=bool(c.prorroga_meses))
+        renovacion_automatica=bool(c.prorroga_meses),
+        fechas_uf={(f.periodo.year, f.periodo.month): f.fecha for f in FechaUFMes.objects.filter(sociedad_id=c.sociedad_id)})
 
 
 def _ventas_mes_anterior(c: Contrato, año: int, mes: int):

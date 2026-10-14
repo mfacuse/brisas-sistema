@@ -9,6 +9,7 @@ Reglas implementadas (confirmadas con el propietario, 07 a 09-10-2026):
   * Renta variable: en el mes M se factura el mínimo de M más la diferencia, si la hay, entre el variable
     del mes M-1 (% × ventas netas de M-1) y el mínimo facturado en M-1.
   * Renta en pesos semestral reajustada cada enero por el IPC acumulado del año anterior (Bimedia).
+  * La fecha de la UF de un mes se puede fijar a mano en Facturación para toda la sociedad (incluso contratos «primer día hábil»).
   * Renovación automática: terminado el último tramo, se sigue cobrando esa misma renta (13-10-2026).
   * Descuentos por período (porcentaje, UF o pesos).
   * IVA 19% sobre el neto, redondeado al peso; facturas exentas y notas de cobro no llevan IVA.
@@ -103,7 +104,8 @@ class ContratoD:
     regla_uf: str = 'D1'  # 'D1' | 'PH'
     tipo_documento: str = 'FA'  # 'FA' | 'FE' | 'NC'
     renovacion_automatica: bool = False  # con prórroga: al terminar el último tramo se sigue cobrando esa renta
-    inicio_cobro: Optional[date] = None  # la renta se cobra desde este día (antes: no se cobra); None = según tramos
+    inicio_cobro: Optional[date] = None
+    fechas_uf: dict = field(default_factory=dict)  # {(año, mes): fecha} fecha de la UF elegida a mano para ese mes (manda sobre la regla)  # la renta se cobra desde este día (antes: no se cobra); None = según tramos
 
 
 @dataclass
@@ -134,6 +136,8 @@ class ResultadoMes:
 
 # ----------------------------------------------------------------------------- utilidades de calendario
 def fecha_uf_del_mes(c: ContratoD, año: int, mes: int, feriados=()) -> date:
+    if (año, mes) in c.fechas_uf:   # fecha elegida en Facturación para toda la sociedad ese mes (decisión del propietario, 14-10-2026)
+        return c.fechas_uf[(año, mes)]
     d = date(año, mes, 1)
     if c.regla_uf == 'PH':
         while d.weekday() >= 5 or d in feriados:

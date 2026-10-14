@@ -77,3 +77,5 @@ Complementa «reglas-de-cobro-brisas-del-centro.md». Código y README en la car
   (48 contratos, 39 documentos de octubre, cargos, ventas, medidores, historial). Se conservaron usuarios, sociedades con sus carpetas, propiedades,
   locales y códigos BSOFT. La planilla de la Fase 0 ya no se importa al encender. Respaldo: `Respaldos/brisas_antes_de_borrar_todo_2026-10-13_2026.sqlite3`;
   archivos exportados de octubre en `Respaldos/salidas_antes_de_borrar_todo_2026-10-13/`.
+
+- 2026-10-14: la fecha de la UF del mes se puede elegir a mano en Facturación (por sociedad y mes); por defecto el día 1. La fecha elegida se aplica a todos los contratos de la sociedad ese mes, incluidos los de «primer día hábil» (decisión del propietario).

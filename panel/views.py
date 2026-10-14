@@ -15,7 +15,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from facturacion import asignacion, bsoft, cargas, comparacion, exportar, lectores, motor, servicios
-from facturacion.models import CargaPlanilla, ConsumoServicio, Documento, FacturaEmitida, MedidorServicio, VentaMensual
+from facturacion.models import CargaPlanilla, ConsumoServicio, Documento, FechaUFMes, FacturaEmitida, MedidorServicio, VentaMensual
 from indicadores import servicio as ind
 from indicadores.models import IPC, UF
 from maestro.models import ArchivoContrato, Contrato, PropuestaIA, Sociedad
@@ -129,12 +129,16 @@ def facturacion(request):
     cargos = ConsumoServicio.objects.filter(contrato__sociedad=soc, periodo_cobro=p)
     n_luz, n_gas, n_otro = (cargos.filter(servicio=k).count() for k in ('ELEC', 'GAS', 'OTRO'))
     c.update(n_luz=n_luz, n_gas=n_gas, n_otro=n_otro, cargos_desactualizados=bool(filas) and cargos.count() != lineas_cargo)
+    fija = FechaUFMes.objects.filter(sociedad=soc, periodo=p).first()
+    fecha_uf = fija.fecha if fija else _fecha_uf_mes(p)
+    c.update(fecha_uf=fecha_uf, fecha_uf_fija=fija, uf_elegida=UF.objects.filter(fecha=fecha_uf).first(),
+             hay_ph=servicios.contratos_del_mes(soc, p.year, p.month).filter(regla_uf='PH').exists())
     c.update(filas=filas, sin_doc=sin_doc, tot=tot, ventas_pend=_ventas_pendientes(soc, p),
              hay_borradores=any(f['d'].estado == 'B' for f in filas), hay_aprobados=any(f['d'].estado in 'AX' for f in filas),
              hay_facturas=any(f['d'].estado in 'AX' and f['d'].tipo_documento != 'NC' for f in filas),
              hay_notas=any(f['d'].estado in 'AX' and f['d'].tipo_documento == 'NC' for f in filas),
              emitidas_revisar=FacturaEmitida.objects.filter(sociedad=soc, estado__in=('D', 'S', 'I')).count(),
-             uf=UF.objects.filter(fecha=_fecha_uf_mes(p)).first())
+             uf=UF.objects.filter(fecha=fecha_uf).first())
     return render(request, 'panel/facturacion.html', c)
 
 
@@ -526,3 +530,29 @@ def otro_manual(request):
     except (KeyError, ValueError, InvalidOperation, Contrato.DoesNotExist):
         messages.error(request, 'Revise el contrato, el mes y el monto del cargo.')
     return redirect(f'/cargas/?sociedad={soc.id}&periodo={p:%Y-%m}')
+
+
+@requiere_operacion
+@require_POST
+def fecha_uf(request):
+    """Fija (o vuelve al día 1) la fecha de la UF para la sociedad y el mes. Se aplica a todos sus contratos ese mes."""
+    p, (soc, _) = _periodo(request), _sociedad(request)
+    volver = f'/facturacion/?sociedad={soc.id}&periodo={p:%Y-%m}'
+    if request.POST.get('accion') == 'dia1':
+        FechaUFMes.objects.filter(sociedad=soc, periodo=p).delete()
+        messages.success(request, f'Se vuelve a usar la UF del día 1 (o del primer día hábil según cada contrato). Regenere los borradores.')
+    else:
+        try:
+            f = date.fromisoformat(request.POST.get('fecha', ''))
+        except ValueError:
+            messages.error(request, 'Elija una fecha válida.')
+            return redirect(volver)
+        uf = UF.objects.filter(fecha=f).first()
+        if not uf:
+            messages.error(request, f'La UF del {f:%d-%m-%Y} no está cargada. Cárguela en UF / IPC (o ingrésela a mano) y vuelva a intentar.')
+            return redirect(volver)
+        FechaUFMes.objects.update_or_create(sociedad=soc, periodo=p, defaults={'fecha': f, 'usuario': request.user.get_username()})
+        messages.success(request, f'Para {motor.MESES[p.month]} {p.year} se usará la UF del {f:%d-%m-%Y} ({motor.fmt_uf(uf.valor)}) en todos los contratos de {soc.nombre}. Regenere los borradores.')
+    if Documento.objects.filter(contrato__sociedad=soc, periodo=p, estado__in=('A', 'X')).exists():
+        messages.warning(request, 'Hay documentos aprobados o exportados: no cambian. Para aplicarles la nueva fecha use «Volver aprobados a borrador» y regenere.')
+    return redirect(volver)

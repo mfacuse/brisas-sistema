@@ -299,3 +299,32 @@ class AsignacionIATest(Base):
     def test_las_pruebas_nunca_usan_la_clave_real(self):
         from maestro import ia
         self.assertEqual(ia.clave_api(), '')
+
+
+class FechaUFTest(Base):
+    def test_fecha_elegida_se_aplica_a_todos_incluso_primer_dia_habil(self):
+        from .models import FechaUFMes
+        UF.objects.create(fecha=date(2026, 10, 5), valor=D('41100.00'))
+        self.nc.regla_uf = 'PH'
+        self.nc.save()
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        r = self.client.post('/facturacion/fecha-uf/', {'sociedad': self.soc.id, 'periodo': '2026-10', 'fecha': '2026-10-09'}, follow=True)
+        self.assertContains(r, 'no está cargada')   # sin UF de esa fecha no se acepta
+        self.client.post('/facturacion/fecha-uf/', {'sociedad': self.soc.id, 'periodo': '2026-10', 'fecha': '2026-10-05'})
+        self.assertEqual(FechaUFMes.objects.get().fecha, date(2026, 10, 5))
+        servicios.generar_borradores(self.soc, 2026, 10)
+        for d in Documento.objects.filter(periodo=date(2026, 10, 1)):
+            self.assertEqual((d.fecha_uf, d.valor_uf), (date(2026, 10, 5), D('41100.00')))
+            self.assertIn('05/10/2026', d.glosa)
+        self.assertContains(self.client.get(f'/facturacion/?sociedad={self.soc.id}&periodo=2026-10'), 'elegida a mano')
+        # noviembre no cambia
+        servicios.generar_borradores(self.soc, 2026, 11)
+        self.assertEqual(Documento.objects.get(contrato=self.fa, periodo=date(2026, 11, 1)).fecha_uf, date(2026, 11, 1))
+        # volver al día 1
+        self.client.post('/facturacion/fecha-uf/', {'sociedad': self.soc.id, 'periodo': '2026-10', 'accion': 'dia1'})
+        self.assertFalse(FechaUFMes.objects.exists())
+        servicios.generar_borradores(self.soc, 2026, 10)
+        self.assertEqual(Documento.objects.get(contrato=self.fa, periodo=date(2026, 10, 1)).fecha_uf, date(2026, 10, 1))

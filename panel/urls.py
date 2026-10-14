@@ -16,6 +16,7 @@ urlpatterns = [
     path('', v.inicio, name='inicio'),
     path('facturacion/', v.facturacion, name='facturacion'),
     path('facturacion/generar/', v.generar, name='generar'),
+    path('facturacion/fecha-uf/', v.fecha_uf, name='fecha_uf'),
     path('facturacion/aprobar/', v.aprobar_todo, name='aprobar_todo'),
     path('facturacion/volver/', v.volver_borrador_todo, name='volver_borrador_todo'),
     path('facturacion/excel/', v.exportar_excel, name='exportar_excel'),
