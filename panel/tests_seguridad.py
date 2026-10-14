@@ -61,3 +61,20 @@ class SegundoFactorTest(TestCase):
         self.client.post('/login/', {'username': 'ana', 'password': 'clave-correcta-123'})
         r = self.client.post('/login/codigo/', {'codigo': codigo})
         self.assertContains(r, 'Código incorrecto')
+
+
+class ImportarDatosTest(TestCase):
+    def test_solo_en_base_vacia_y_solo_superusuario(self):
+        import json
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from maestro.models import Sociedad
+        u = User.objects.create_user('op', password='x')
+        self.client.force_login(u)
+        self.assertEqual(self.client.get('/configuracion/importar-datos/').status_code, 302)   # no es superusuario
+        admin = User.objects.create_superuser('instalacion', password='x')
+        self.client.force_login(admin)
+        datos = [{'model': 'maestro.sociedad', 'pk': 50, 'fields': {'nombre': 'Soc Nube', 'rut': '1-9', 'giro': '', 'direccion': '', 'sigla': 'SN',
+                  'carpeta_contratos': 'gdrive:abc', 'carpeta_facturas': '', 'carpeta_actas': '', 'datos_pago': ''}}]
+        archivo = SimpleUploadedFile('brisas_nube.json', json.dumps(datos).encode(), content_type='application/json')
+        self.client.post('/configuracion/importar-datos/', {'archivo': archivo})
+        self.assertEqual(Sociedad.objects.get(pk=50).carpeta_contratos, 'gdrive:abc')

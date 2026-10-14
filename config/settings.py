@@ -187,6 +187,7 @@ PRUEBAS = len(sys.argv) > 1 and sys.argv[1] == 'test'
 if PRUEBAS:  # las pruebas no dejan archivos en la carpeta real de salidas ni usan la clave real de la IA
     import tempfile
     MEDIA_ROOT = Path(tempfile.mkdtemp(prefix='brisas_pruebas_'))
+    SECRETOS_DIR = Path(tempfile.mkdtemp(prefix='brisas_secretos_pruebas_'))   # nunca el permiso real de Google ni la clave de la IA
 
 
 def _raices_carpetas():
