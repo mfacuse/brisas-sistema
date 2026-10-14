@@ -123,7 +123,7 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
     if carga.estado != CargaPlanilla.Estado.REVISAR:
         raise ValueError('Esta planilla ya no está pendiente.')
     contratos = {c.codigo: c for c in Contrato.objects.filter(sociedad=carga.sociedad)}
-    a_cargar, sin_asignar, no_cobra = [], [], []
+    a_cargar, sin_asignar, no_cobra, de_megaservicios = [], [], [], []
     for d in carga.filas:
         cod = asignacion.get(d['fila'], d['contrato'])
         f = _fila_obj(d)
@@ -137,11 +137,15 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
         if not c:
             sin_asignar.append(d)
             continue
+        mega = not c.cobra_inmobiliaria(carga.servicio)
         m, _ = MedidorServicio.objects.get_or_create(servicio=carga.servicio, etiqueta_local=d['etiqueta'][:60], nombre_planilla=d['nombre'][:80],
                                                      defaults=dict(contrato=c, tarifa=d['tarifa'][:10]))
         m.contrato, m.confirmado = c, True
         m.nota = (f'Confirmado por {usuario}' + (f' (propuesta de la IA: {d["motivo"]})' if d.get('fuente') == 'IA' else ''))[:200]
         m.save()
+        if mega:
+            de_megaservicios.append(f'{c.codigo} {c.nombre_fantasia}')   # se recuerda el local, pero no se cobra en la factura
+            continue
         a_cargar.append(f)
     if sin_asignar:
         raise ValueError('Faltan por asignar: ' + ', '.join(f'{d["etiqueta"]} {d["nombre"]}' for d in sin_asignar[:8])
@@ -149,6 +153,8 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
     res = cargas.cargar_filas(a_cargar, carga.periodo_consumo, carga.periodo_cobro, carga.archivo)
     carga.estado = CargaPlanilla.Estado.CARGADA
     carga.resultado = (f'{res.cargados} cargos por ${int(res.total):,}'.replace(',', '.') + (f' · no se cobran: {", ".join(no_cobra)}' if no_cobra else '')
-                       + (f' · sin cobro ($0): {", ".join(res.en_cero)}' if res.en_cero else '') + f' · confirmado por {usuario}')
+                       + (f' · sin cobro ($0): {", ".join(res.en_cero)}' if res.en_cero else '')
+                       + (f' · los cobra Megaservicios (no van en la factura): {", ".join(de_megaservicios)}' if de_megaservicios else '')
+                       + f' · confirmado por {usuario}')
     carga.save()
     return res

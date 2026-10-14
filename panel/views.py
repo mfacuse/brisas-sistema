@@ -514,8 +514,13 @@ def planilla(request, pk):
     c = ctx_base(request, periodo=carga.periodo_cobro)
     c['sociedad'] = carga.sociedad
     filas = carga.filas
+    mega = set()
+    if carga.servicio in ('GGCC', 'AGUA'):
+        campo = 'cobra_gastos_comunes' if carga.servicio == 'GGCC' else 'cobra_agua'
+        mega = set(Contrato.objects.filter(sociedad=carga.sociedad, **{campo: 'MEGA'}).values_list('codigo', flat=True))
     for d in filas:
         d['neto_int'] = int(D(d['neto']))
+        d['mega'] = d.get('contrato') in mega
     c.update(carga=carga, filas=filas, contratos=Contrato.objects.filter(sociedad=carga.sociedad).order_by('codigo'),
              n_ia=sum(d['fuente'] == 'IA' for d in filas), n_conf=sum(d['fuente'] == 'medidor confirmado' for d in filas),
              n_sin=sum(not d['contrato'] and d['neto_int'] != 0 for d in filas), total=sum(d['neto_int'] for d in filas))

@@ -357,6 +357,7 @@ class AguaYGastosComunesTest(Base):
     def test_gastos_comunes_en_la_factura_con_iva(self):
         from . import asignacion, lectores
         from .models import CargaPlanilla, LineaDocumento
+        Contrato.objects.filter(pk__in=[self.fa.pk, self.nc.pk]).update(cobra_gastos_comunes='INM')   # los cobra la inmobiliaria
         ruta = self._xlsx([['Local', 'Arrendatario', 'Neto'], ['L01', 'Ale SpA', 100000], ['L02', 'Casa Ltda', 50000]])
         _, filas = lectores.leer_generica(ruta, 'GGCC')
         carga = asignacion.preparar(self.soc, 'GGCC', filas, date(2026, 9, 1), date(2026, 10, 1), 'ggcc.xlsx', 'op')
@@ -373,3 +374,32 @@ class AguaYGastosComunesTest(Base):
         # el mes siguiente las filas confirmadas se asignan solas
         carga2 = asignacion.preparar(self.soc, 'GGCC', filas, date(2026, 10, 1), date(2026, 11, 1), 'ggcc2.xlsx', 'op')
         self.assertEqual([d['fuente'] for d in carga2.filas], ['medidor confirmado', 'medidor confirmado'])
+
+
+    def test_los_que_cobra_megaservicios_no_van_en_la_factura(self):
+        from . import asignacion, lectores
+        from .models import ConsumoServicio
+        Contrato.objects.filter(pk=self.fa.pk).update(cobra_agua='INM')   # P-01: agua la cobra la inmobiliaria; P-02 sigue con Megaservicios
+        ruta = self._xlsx([['Local', 'Nombre', 'Neto'], ['L01', 'Ale', 8000], ['L02', 'Casa', 9000]])
+        _, filas = lectores.leer_generica(ruta, 'AGUA')
+        carga = asignacion.preparar(self.soc, 'AGUA', filas, date(2026, 9, 1), date(2026, 10, 1), 'agua.xlsx', 'op')
+        asignacion.confirmar(carga, {2: 'P-01', 3: 'P-02'}, 'op')
+        self.assertEqual(list(ConsumoServicio.objects.values_list('contrato__codigo', flat=True)), ['P-01'])
+        self.assertIn('los cobra Megaservicios', carga.resultado)
+        # si después se cambia P-01 a Megaservicios, lo ya cargado no entra en la factura
+        Contrato.objects.filter(pk=self.fa.pk).update(cobra_agua='MEGA')
+        servicios.generar_borradores(self.soc, 2026, 10)
+        self.assertFalse(Documento.objects.get(contrato=self.fa).lineas.filter(origen='AGUA').exists())
+
+    def test_pantalla_quien_cobra_cambia_y_deja_historial(self):
+        from maestro.models import RegistroCambio
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        self.assertContains(self.client.get(f'/contratos/quien-cobra/?sociedad={self.soc.id}'), 'Megaservicios (directo al arrendatario)')
+        datos = {f'g_{self.fa.pk}': 'INM', f'a_{self.fa.pk}': 'MEGA', f'g_{self.nc.pk}': 'MEGA', f'a_{self.nc.pk}': 'MEGA', 'sociedad': self.soc.id}
+        self.client.post(f'/contratos/quien-cobra/?sociedad={self.soc.id}', datos)
+        self.fa.refresh_from_db()
+        self.assertEqual((self.fa.cobra_gastos_comunes, self.fa.cobra_agua), ('INM', 'MEGA'))
+        self.assertTrue(RegistroCambio.objects.filter(contrato=self.fa, usuario='op').exists())

@@ -130,6 +130,10 @@ class Contrato(models.Model):
         APERTURA = 'APE', 'Desde la apertura'
         PRIMERO = 'PRI', 'Apertura o N días desde la entrega, lo que ocurra primero'
 
+    class QuienCobra(models.TextChoices):
+        MEGASERVICIOS = 'MEGA', 'Megaservicios (directo al arrendatario)'
+        INMOBILIARIA = 'INM', 'La inmobiliaria (en la factura)'
+
     class BaseVariable(models.TextChoices):
         NINGUNA = '', 'Sin renta variable'
         VENTAS = 'V', 'Ventas netas'
@@ -179,7 +183,9 @@ class Contrato(models.Model):
     variable_desde = models.DateField('la renta variable rige desde (vacío = desde el inicio)', null=True, blank=True)
     garantia_uf = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     garantia_clp = models.DecimalField(max_digits=14, decimal_places=0, null=True, blank=True)
-    gastos_comunes = models.TextField('gastos comunes según contrato (referencia; los factura Megaservicios)', blank=True)
+    gastos_comunes = models.TextField('gastos comunes según contrato (referencia)', blank=True)
+    cobra_gastos_comunes = models.CharField('quién cobra los gastos comunes', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
+    cobra_agua = models.CharField('quién cobra el agua', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
     condiciones = models.TextField(blank=True)
     observaciones = models.TextField(blank=True)
     documentos_fuente = models.TextField(blank=True)
@@ -216,6 +222,14 @@ class Contrato(models.Model):
             if calc:
                 self.fecha_inicio_cobro, self.inicio_cobro_auto = calc, True
         super().save(*a, **k)
+
+    def cobra_inmobiliaria(self, servicio: str) -> bool:
+        """¿La inmobiliaria cobra este servicio en su factura? (gastos comunes y agua pueden cobrarlos Megaservicios directamente)."""
+        if servicio == 'GGCC':
+            return self.cobra_gastos_comunes == 'INM'
+        if servicio == 'AGUA':
+            return self.cobra_agua == 'INM'
+        return True
 
     @property
     def meses_cobro_lista(self):

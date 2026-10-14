@@ -295,7 +295,8 @@ class ContratoForm(forms.ModelForm):
                   'fecha_entrega', 'fecha_apertura', 'regla_inicio_cobro', 'dias_inicio_cobro', 'fecha_inicio_cobro',
                   'plazo_meses', 'fin_pactado', 'prorroga_meses', 'aviso_dias', 'fecha_termino_real', 'regla_uf', 'modo_cambio_tramo',
                   'tipo_renta', 'periodicidad', 'meses_cobro', 'reajuste_ipc', 'pct_variable', 'base_variable', 'variable_desde',
-                  'm2_contrato', 'garantia_uf', 'garantia_clp', 'autoriza_avisos', 'activo', 'condiciones', 'observaciones', 'locales']
+                  'm2_contrato', 'garantia_uf', 'garantia_clp', 'cobra_gastos_comunes', 'cobra_agua', 'autoriza_avisos', 'activo',
+                  'condiciones', 'observaciones', 'locales']
         widgets = {k: forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d')
                    for k in ('fecha_contrato', 'inicio_vigencia', 'fecha_entrega', 'fecha_apertura', 'fecha_inicio_cobro', 'fin_pactado', 'fecha_termino_real', 'variable_desde')}
         widgets.update({'condiciones': forms.Textarea(attrs={'rows': 3}), 'observaciones': forms.Textarea(attrs={'rows': 3}),
@@ -516,3 +517,26 @@ def actas_accion(request):
         except ia.SinClave as e:
             messages.error(request, str(e))
     return redirect(f'{reverse("actas")}?sociedad={soc.id}')
+
+
+# ------------------------------------------------------------------ quién cobra gastos comunes y agua (todos los contratos)
+@login_required
+def quien_cobra(request):
+    c = ctx_base(request)
+    soc = c['sociedad']
+    contratos = Contrato.objects.filter(sociedad=soc, activo=True).select_related('arrendatario').order_by('codigo')
+    if request.method == 'POST':
+        from .permisos import puede_operar
+        if not puede_operar(request.user):
+            raise PermissionDenied
+        n = 0
+        for ct in contratos:
+            g, a = request.POST.get(f'g_{ct.pk}'), request.POST.get(f'a_{ct.pk}')
+            if g in ('MEGA', 'INM') and a in ('MEGA', 'INM') and (g, a) != (ct.cobra_gastos_comunes, ct.cobra_agua):
+                ct.cobra_gastos_comunes, ct.cobra_agua = g, a
+                ct.save()   # queda en el historial de cada contrato
+                n += 1
+        messages.success(request, f'{n} contrato(s) actualizado(s). Regenere los borradores para aplicar el cambio.' if n else 'No hubo cambios.')
+        return redirect(f'{reverse("quien_cobra")}?sociedad={soc.id}')
+    c.update(contratos=contratos, opciones=Contrato.QuienCobra.choices)
+    return render(request, 'panel/quien_cobra.html', c)

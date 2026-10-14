@@ -93,6 +93,10 @@ def calcular_contrato(c: Contrato, año: int, mes: int, feriados=()):
     elif c.fecha_inicio_cobro and c.fecha_inicio_cobro > date(año, mes, calendar.monthrange(año, mes)[1]):
         r.notas.append(f'La renta se cobra desde el {c.fecha_inicio_cobro:%d-%m-%Y}.')
     for cs in ConsumoServicio.objects.filter(contrato=c, periodo_cobro=periodo).select_related('medidor_ref').order_by('servicio', 'medidor', 'id'):
+        if not c.cobra_inmobiliaria(cs.servicio):
+            # cargado antes de marcar el contrato como «lo cobra Megaservicios»: no se incluye
+            r.notas.append(f'{cs.get_servicio_display()} cargado pero lo cobra Megaservicios: no va en esta factura.')
+            continue
         lineas.append(linea_consumo(cs))
         if cs.medidor_ref and not cs.medidor_ref.confirmado:
             r.advertencias.append(f'Medidor «{cs.medidor_ref.nombre_planilla}» ({cs.get_servicio_display().lower()}) asignado a este contrato por confirmar.')
