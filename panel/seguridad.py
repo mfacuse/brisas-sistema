@@ -1,5 +1,8 @@
 """Ingreso seguro: bloqueo tras intentos fallidos y verificación en dos pasos (código de 6 dígitos de una app del celular).
 
+Estado 2026-10-14: verificación APAGADA en la nube por decisión de Matías mientras dure el desarrollo (DJANGO_2FA=0 en render.yaml);
+se reactiva poniendo DJANGO_2FA=1. Las configuraciones existentes se conservan.
+
 En la nube (DJANGO_2FA=1) todo usuario debe configurar la verificación la primera vez que entra. En el Mac (modo oficina) es opcional."""
 from datetime import timedelta
 
@@ -46,7 +49,8 @@ def ingresar(request):
         elif form.is_valid():
             u = form.get_user()
             IntentoIngreso.objects.create(usuario=usuario, ip=_ip(request), exito=True)
-            sf = SegundoFactor.objects.filter(usuario=u, activo=True).first()
+            # con la verificación apagada (DJANGO_2FA≠1) se entra solo con la clave, aunque la persona la tenga configurada
+            sf = SegundoFactor.objects.filter(usuario=u, activo=True).first() if settings.EXIGIR_2FA else None
             if sf:
                 request.session['2fa_usuario'], request.session['2fa_next'] = u.pk, nxt
                 return redirect('ingresar_codigo')

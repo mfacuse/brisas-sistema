@@ -78,3 +78,14 @@ class ImportarDatosTest(TestCase):
         archivo = SimpleUploadedFile('brisas_nube.json', json.dumps(datos).encode(), content_type='application/json')
         self.client.post('/configuracion/importar-datos/', {'archivo': archivo})
         self.assertEqual(Sociedad.objects.get(pk=50).carpeta_contratos, 'gdrive:abc')
+
+
+@override_settings(EXIGIR_2FA=False)
+class SinSegundoFactorTest(TestCase):
+    def test_apagada_entra_solo_con_clave_aunque_tenga_codigo_configurado(self):
+        u = User.objects.create_user('ana', password='clave-correcta-123')
+        SegundoFactor.objects.create(usuario=u, secreto=pyotp.random_base32(), activo=True)
+        r = self.client.post('/login/', {'username': 'ana', 'password': 'clave-correcta-123'})
+        self.assertRedirects(r, '/', fetch_redirect_response=False)
+        self.assertIn('_auth_user_id', self.client.session)
+        self.assertEqual(self.client.get('/facturacion/').status_code, 200)

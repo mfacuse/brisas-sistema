@@ -9,7 +9,7 @@ envVarGroups:
       - key: DJANGO_HTTPS
         value: "1"
       - key: DJANGO_2FA
-        value: "1"
+        value: "0"           # verificación en dos pasos apagada mientras dure el desarrollo (Matías, 14-10-2026); poner "1" para reactivarla
       - key: DJANGO_ALLOWED_HOSTS
         value: sistema.invercochile.com
       - key: DJANGO_CSRF_ORIGINS

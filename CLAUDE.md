@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (108 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (109 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -46,7 +46,8 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   (OAuth, solo lectura, botón en Carpetas y configuración; `panel/vistas_drive.py`): la política de Inverco bloquea claves de cuentas de servicio.
   Para conectar desde el Mac, abrir el sistema en http://localhost:8000 (no 127.0.0.1). `.google_*.json` son privados como `.clave_secreta`.
 - `render.yaml`: web (gunicorn) + PostgreSQL + disco `/var/data` + tarea diaria `tareas_diarias`. Variables `DJANGO_HTTPS=1`, `DJANGO_2FA=1`.
-- Verificación en dos pasos y bloqueo de ingreso en `panel/seguridad.py` (obligatoria solo si `DJANGO_2FA=1`).
+- Verificación en dos pasos y bloqueo de ingreso en `panel/seguridad.py` (obligatoria solo si `DJANGO_2FA=1`). **Apagada en la nube desde el
+  2026-10-14 por decisión de Matías mientras siga en desarrollo** (render.yaml `DJANGO_2FA=0`); reactivarla antes de pasar a uso normal.
 - Respaldo diario (tarea 8:00 y botón «Respaldar ahora»): `maestro/respaldos.py` sube la base comprimida (.json.gz) a la carpeta «Respaldos sistema
   Brisas» de Mi unidad (permiso drive.file: solo archivos que crea el sistema; conserva 60). Se restaura con «Importar datos» en una base vacía.
   Permiso de Google, cliente y clave de IA se guardan en la base (`DatoSistema`) para que también los vea la tarea diaria.
