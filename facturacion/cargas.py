@@ -43,10 +43,11 @@ def sembrar_medidores():
 
 def _buscar_medidor(fila: L.FilaCargo):
     qs = MedidorServicio.objects.filter(servicio=fila.servicio).select_related('contrato')
+    nombre, etiqueta = L.norm(fila.nombre[:80]), L.norm(fila.etiqueta_local[:60])   # el medidor guarda los textos recortados al largo del campo
     for m in qs:
-        if L.norm(m.nombre_planilla) == L.norm(fila.nombre) and L.norm(m.etiqueta_local) == L.norm(fila.etiqueta_local):
+        if L.norm(m.nombre_planilla) == nombre and L.norm(m.etiqueta_local) == etiqueta:
             return m
-    por_nombre = [m for m in qs if L.norm(m.nombre_planilla) == L.norm(fila.nombre)]
+    por_nombre = [m for m in qs if L.norm(m.nombre_planilla) == nombre]
     return por_nombre[0] if len(por_nombre) == 1 else None
 
 

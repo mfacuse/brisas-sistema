@@ -512,3 +512,30 @@ class LargoCamposTest(TestCase):
         from .models import ConsumoServicio, MedidorServicio
         for m in (ConsumoServicio, MedidorServicio):
             self.assertGreaterEqual(m._meta.get_field('tarifa').max_length, len('cliente 12345678901'))
+
+
+class TextosLargosTest(Base):
+    """Ningún texto demasiado largo debe botar el sistema en la nube (PostgreSQL): se recorta al guardar."""
+    def test_en_pruebas_avisa_y_en_el_sistema_recorta(self):
+        from maestro import largos
+        from .models import MedidorServicio
+        m = MedidorServicio(contrato=self.fa, servicio='ELEC', nombre_planilla='x' * 200, tarifa='t')
+        with self.assertRaises(largos.TextoMuyLargo):
+            m.save()
+        with self.settings(PRUEBAS=False):
+            m.save()
+        m.refresh_from_db()
+        self.assertEqual(len(m.nombre_planilla), 80)
+
+    def test_planilla_con_nombres_y_textos_muy_largos_se_carga(self):
+        from . import asignacion, lectores
+        from .models import ConsumoServicio
+        Contrato.objects.filter(pk=self.fa.pk).update(cobra_agua='INM')
+        largo = 'Arrendatario con un nombre comercial larguísimo ' * 6
+        ruta = AguaYGastosComunesTest._xlsx(self, [['N° local de la planilla del proveedor ' * 3, 'Nombre', 'Nro cliente', 'Consumo m3', 'Neto'],
+                                                   ['L' * 90, largo, 123456789012345678901234567890123456789, 5, 7000]])
+        _, filas = lectores.leer_generica(ruta, 'AGUA')
+        with self.settings(PRUEBAS=False):
+            carga = asignacion.preparar(self.soc, 'AGUA', filas, date(2026, 9, 1), date(2026, 10, 1), 'x' * 300 + '.xlsx', 'op')
+            asignacion.confirmar(carga, {2: 'P-01'}, 'op')
+        self.assertEqual(ConsumoServicio.objects.get().neto, 7000)

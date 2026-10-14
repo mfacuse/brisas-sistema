@@ -7,3 +7,5 @@ class MaestroConfig(AppConfig):
     def ready(self):
         from . import historial
         historial.conectar()
+        from . import largos
+        largos.conectar()

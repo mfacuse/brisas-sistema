@@ -9,6 +9,7 @@ from django.db import transaction
 from django.db.models import Q
 
 from indicadores import servicio as ind
+from maestro import largos
 from maestro.models import Contrato
 
 from . import motor
@@ -136,10 +137,10 @@ def generar_borradores(sociedad, año: int, mes: int, codigos=None, feriados=())
             # un número ya asignado (aprobado y vuelto a borrador) se conserva para no dejar saltos en la numeración
             numero_interno=numero_previo[0] if serie(numero_previo[1]) == serie(c.tipo_documento) else '')
         orig = {k: k for k in ('RENTA', 'RDIF', 'DESC', 'ELEC', 'GAS', 'AGUA', 'GGCC', 'OTRO')}
-        LineaDocumento.objects.bulk_create([
+        LineaDocumento.objects.bulk_create([largos.ajustar(x) for x in [
             LineaDocumento(documento=doc, orden=i + 1, origen=orig[l.origen], concepto=l.concepto, detalle=l.detalle, unidad=l.unidad,
                            cantidad_unidad=l.monto, valor_uf=l.valor_uf, neto=l.neto, exento=(c.tipo_documento != 'FA'))
-            for i, l in enumerate(lineas)])
+            for i, l in enumerate(lineas)]])
         res.creados.append(c.codigo)
         if r.advertencias:
             res.con_advertencias.append((c.codigo, r.advertencias))
