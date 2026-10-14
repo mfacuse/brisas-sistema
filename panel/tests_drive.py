@@ -97,3 +97,26 @@ class RespaldoTest(TestCase):
         almacen.guardar_token({'refresh_token': 'rt', 'alcances': almacen.ALCANCE})   # conexión antigua: solo lectura
         r = self.client.post('/configuracion/respaldar/', follow=True)
         self.assertContains(r, 'Volver a conectar Google Drive')
+
+
+class BorrarFacturacionTest(TestCase):
+    def test_borra_solo_con_confirmacion_y_respaldo(self):
+        from unittest import mock
+        from django.contrib.auth.models import User
+        from facturacion.models import CargaPlanilla
+        from datetime import date
+        from maestro.models import Sociedad
+        soc = Sociedad.objects.create(nombre='S', rut='76.000.000-0', sigla='S')
+        CargaPlanilla.objects.create(sociedad=soc, servicio='AGUA', archivo='a.xlsx', periodo_consumo=date(2026, 9, 1), periodo_cobro=date(2026, 10, 1))
+        u = User.objects.create_superuser('jefe', password='x')
+        self.client.force_login(u)
+        with mock.patch('maestro.respaldos.respaldar', return_value={'nombre': 'r.json.gz', 'kb': 1}) as resp:
+            self.client.post('/configuracion/borrar-facturacion/', {'confirmar': 'no'})
+            resp.assert_not_called()
+            self.client.post('/configuracion/borrar-facturacion/', {'confirmar': 'BORRAR'})
+            resp.assert_called_once()
+        self.assertFalse(CargaPlanilla.objects.exists())
+        with mock.patch('maestro.respaldos.respaldar', side_effect=RuntimeError('sin Drive')), \
+             mock.patch('facturacion.limpieza.borrar_facturacion') as borrar:
+            self.client.post('/configuracion/borrar-facturacion/', {'confirmar': 'BORRAR'})
+            borrar.assert_not_called()   # sin respaldo no se borra

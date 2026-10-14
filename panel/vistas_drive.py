@@ -125,3 +125,23 @@ def desconectar(request):
     almacen.olvidar_conexion()
     messages.success(request, 'Google Drive desconectado: el sistema ya no puede leer sus carpetas de Drive.')
     return redirect('configuracion')
+
+
+@requiere_admin
+@require_POST
+def borrar_facturacion(request):
+    """Respalda en Drive y borra toda la facturación y los consumos (para probar desde cero). Hay que escribir BORRAR."""
+    from facturacion import limpieza
+    from maestro import respaldos
+    if request.POST.get('confirmar', '').strip().upper() != 'BORRAR':
+        messages.error(request, 'No se borró nada: escriba BORRAR para confirmar.')
+        return redirect('configuracion')
+    try:
+        r = respaldos.respaldar()
+    except Exception as e:
+        messages.error(request, f'No se borró nada porque no se pudo respaldar antes: {e}')
+        return redirect('configuracion')
+    c = limpieza.borrar_facturacion()
+    messages.success(request, 'Facturación borrada (' + ', '.join(f'{v} {k}' for k, v in c.items()) +
+                     f'). Respaldo previo en Drive: {r["nombre"]}.')
+    return redirect('configuracion')
