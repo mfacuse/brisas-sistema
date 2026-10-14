@@ -483,3 +483,24 @@ class DetalleXMLTest(Base):
         self.assertTrue(t.isascii())
         self.assertIn('27 UF x UF 41.065,38 -> ano', t)
         self.assertEqual(len(t), bsoft.MAX_DETALLE)
+
+
+class GastosComunesAnualTest(Base):
+    _hoja = PlanillasPlazaMotorTest._hoja
+
+    def test_toma_la_columna_del_mes(self):
+        from . import lectores
+        meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
+        ruta = self._hoja('GGCC 2026', [[None, 'GASTOS COMUNES PLAZA MOTOR'], [None, None, 2026, None, None, None] + meses,
+                                        [None, None, 'TOTAL GGCC', None, None, None] + [1000] * 12,
+                                        [None, 'Local', 'Arrendatario', 'm2', '%', 'Max UF/m2'] + meses,
+                                        [None, 1, 'Autoplanet', 478, 0.37, 0.1] + [100.4] * 7 + [1379807.79, 505125.6, None, None, None],
+                                        [None, '4 y 5', 'Disponible', 378, 0.29, None] + [None] * 12,
+                                        [None, 9, 'Totaland', 50.74, 0.04, None] + [5] * 7 + [137775.1, None, None, None, None],
+                                        [None, 'Total', None, 1291.44, 1, None]])
+        hoja, filas = lectores.leer_generica(ruta, 'GGCC', 8)
+        self.assertEqual(lectores.anio_de_hoja(hoja), 2026)
+        self.assertEqual([(f.etiqueta_local, f.nombre, f.neto) for f in filas],
+                         [('1', 'Autoplanet', D('1379807.79')), ('9', 'Totaland', D('137775.1'))])
+        _, filas = lectores.leer_generica(ruta, 'GGCC', 9)
+        self.assertEqual([f.nombre for f in filas], ['Autoplanet'])   # Totaland sin monto en septiembre

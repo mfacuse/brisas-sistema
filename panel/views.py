@@ -354,8 +354,11 @@ def cargar_archivo(request):
                 else:
                     raise lectores.PlanillaInvalida('formato simple')
             except lectores.PlanillaInvalida:
-                hoja, filas = lectores.leer_generica(ruta, SERVICIO_DE_TIPO[tipo])
+                hoja, filas = lectores.leer_generica(ruta, SERVICIO_DE_TIPO[tipo], consumo.month)
             mes_hoja = lectores.mes_de_hoja(hoja) if hoja else None
+            anio_hoja = lectores.anio_de_hoja(hoja) if hoja and not mes_hoja else None
+            if anio_hoja and anio_hoja != consumo.year:
+                raise lectores.PlanillaInvalida(f'La hoja «{hoja}» es del año {anio_hoja}, pero indicó {motor.MESES[consumo.month]} {consumo.year}.')
             if mes_hoja and mes_hoja != (consumo.year, consumo.month):
                 raise lectores.PlanillaInvalida(f'La hoja «{hoja}» es de {motor.MESES[mes_hoja[1]]} {mes_hoja[0]}, pero indicó '
                                                 f'{motor.MESES[consumo.month]} {consumo.year}. Revise el mes antes de cargar.')

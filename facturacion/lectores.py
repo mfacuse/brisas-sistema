@@ -215,7 +215,57 @@ def mes_de_hoja(nombre: str):
     return None
 
 
-def leer_generica(ruta, servicio: str):
+MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+
+
+def _leer_matriz_anual(ruta, servicio: str, mes: int):
+    """Planilla anual con una columna por mes (p. ej. gastos comunes de Plaza Motor: Local | Arrendatario | m2 | % | … | ENERO … DICIEMBRE).
+    Toma la columna del mes pedido. Devuelve (hoja, filas) o None si la planilla no tiene esa forma."""
+    for nombre_hoja, filas in hojas(ruta).items():
+        for k, f in enumerate(filas[:60]):
+            enc = [norm(c) for c in f]
+            cols_mes = {MESES_LARGOS.index(e) + 1: i for i, e in enumerate(enc) if e in MESES_LARGOS}
+            if len(cols_mes) < 3:
+                continue
+            i_local, i_nombre = _buscar(enc, COLS_LOCAL), _buscar(enc, COLS_NOMBRE)
+            if i_local is None and i_nombre is None:
+                continue   # fila de meses del resumen (sin columnas de local), seguir buscando
+            if mes is None or mes not in cols_mes:
+                raise PlanillaInvalida(f'La planilla tiene una columna por mes; no encontré la del mes {MESES_LARGOS[(mes or 1) - 1]}.')
+            i_monto = cols_mes[mes]
+            i_m2 = _buscar(enc, ['m2', 'superficie'])
+            out = []
+            for j in range(k + 1, len(filas)):
+                fila = filas[j]
+                nombre = str(_cel(fila, i_nombre) or '').strip() if i_nombre is not None else ''
+                local = _cel(fila, i_local) if i_local is not None else None
+                local = (str(int(local)) if isinstance(local, float) and local.is_integer() else str(local or '')).strip()
+                if not (nombre or local) or _es_total(nombre) or _es_total(local):
+                    continue
+                neto = _num(_cel(fila, i_monto))
+                if neto is None:
+                    continue   # local disponible o sin cobro ese mes
+                m2 = _num(_cel(fila, i_m2)) if i_m2 is not None else None
+                out.append(FilaCargo(servicio, local, nombre or local, f'{m2} m²' if m2 is not None else '', None, None, None, None, '', neto, j + 1))
+            return nombre_hoja, out
+    return None
+
+
+def leer_generica(ruta, servicio: str, mes: int = None):
+    matriz = _leer_matriz_anual(ruta, servicio, mes)
+    if matriz:
+        return matriz
+    return _leer_tabla_simple(ruta, servicio)
+
+
+def anio_de_hoja(nombre: str):
+    """«GGCC 2026» → 2026; None si no trae un año."""
+    import re
+    m = re.search(r'(20\d\d)', nombre or '')
+    return int(m.group(1)) if m else None
+
+
+def _leer_tabla_simple(ruta, servicio: str):
     """Planilla simple con una fila por local y su monto: agua (AGUA), gastos comunes (GGCC) y luz/gas en formato
     simple (Plaza Motor). Detecta solas las columnas: monto («Neto», «Monto», «$»…), nombre («Arrendatario», «Nombre»…;
     si no tiene título, la columna de texto) y local («Local», o la columna de números junto al nombre); opcionales

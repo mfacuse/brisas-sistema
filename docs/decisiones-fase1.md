@@ -86,6 +86,7 @@ Complementa «reglas-de-cobro-brisas-del-centro.md». Código y README en la car
 - Matías entregó los formatos de luz y agua de Plaza Motor (hoja «AGO26»). Se leen con el lector de formato simple; luz y gas prueban primero
   el formato de Boulevard. El mes del nombre de la hoja debe coincidir con el mes de consumo indicado.
 - Filas sin monto (p. ej. Autoplanet en luz o «+56 Food», que comparte medidor con Totaland) no se cargan.
-- Pendiente: el formato de la planilla de gastos comunes (no venía adjunto).
+- Gastos comunes de Plaza Motor: planilla anual (hoja «GGCC 2026») con una columna por mes; se toma la columna del mes de consumo
+  indicado al cargar (el año de la hoja debe coincidir). Locales «Disponible» o sin monto no se cargan.
 - XML de BSOFT: se agrega en cada línea `<DscItem>` con el texto del cálculo (renta, UF, prorratas, consumos). Si BSOFT usa otro nombre
   de campo, se cambia en `bsoft.TAG_DETALLE`.
