@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% block titulo %}Elegir carpeta · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% block titulo %}Elegir carpeta · Sistema Facturación{% endblock %}
 {% block contenido %}<p class="small"><a href="{% url 'configuracion' %}">← Carpetas y configuración</a></p>
 <h1>Elegir carpeta de {% if tipo == 'contratos' %}contratos{% elif tipo == 'actas' %}actas de entrega{% elif tipo == 'planos' %}planos de {{ prop.nombre }}{% else %}facturas emitidas{% endif %}</h1><p class="sub">{{ s.nombre }}. Navegue por las carpetas y presione «Usar esta carpeta». Se revisan también las subcarpetas.{% if correo_drive %} Las carpetas de Google Drive aparecen aquí cuando se comparten (solo lectura) con <b>{{ correo_drive }}</b>.{% endif %}</p>
 {% if error %}<div class="warnbox">{{ error }}</div>{% endif %}

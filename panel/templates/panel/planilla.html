@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Revisar planilla · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Revisar planilla · Sistema Facturación{% endblock %}
 {% block contenido %}{% if carga.estado == 'P' %}<meta http-equiv="refresh" content="8">{% endif %}<p class="small"><a href="{% url 'cargas' %}?sociedad={{ carga.sociedad_id }}&periodo={{ carga.periodo_cobro|date:'Y-m' }}">← Cargas</a></p>
 <h1>Revisar planilla de {% if carga.servicio == 'ELEC' %}electricidad{% else %}gas{% endif %}</h1>
 <p class="sub">«{{ carga.archivo }}» · consumo de {{ carga.periodo_consumo|mes }} → factura de {{ carga.periodo_cobro|mes }} · {{ filas|length }} filas por {{ total|clp }} neto{% if carga.costo_usd %} · asignación IA US$ {{ carga.costo_usd|floatformat:2 }}{% endif %}</p>

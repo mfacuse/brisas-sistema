@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Facturación · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Facturación · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Facturación del mes</h1><p class="sub">Genere los borradores, revise las advertencias, apruebe y exporte. Un documento por contrato y mes.</p>
 {% include 'panel/_selector.html' %}
 <form method="post" action="{% url 'fecha_uf' %}" class="toolbar" style="margin-bottom:10px">{% csrf_token %}<input type="hidden" name="sociedad" value="{{ sociedad.id }}"><input type="hidden" name="periodo" value="{{ periodo|date:'Y-m' }}">

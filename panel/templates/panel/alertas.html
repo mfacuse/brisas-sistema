@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Alertas · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Alertas · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Alertas de contratos</h1><p class="sub">Vencimientos, plazos de aviso de no renovación (según cada contrato), fin de gracia y cambios de renta.</p>
 <div class="toolbar"><form method="get">Próximos <select name="dias" onchange="this.form.submit()"><option value="60" {% if dias == 60 %}selected{% endif %}>60</option><option value="90" {% if dias == 90 %}selected{% endif %}>90</option><option value="180" {% if dias == 180 %}selected{% endif %}>180</option><option value="365" {% if dias == 365 %}selected{% endif %}>365</option></select> días</form></div>
 <div class="tw"><table><tr><th>Contrato</th><th>Nivel</th><th>Aviso</th></tr>{% for cod, nom, nivel, txt in filas %}<tr><td class="nowrap"><a href="{% url 'contrato' cod %}"><b>{{ cod }}</b></a> {{ nom }}</td>

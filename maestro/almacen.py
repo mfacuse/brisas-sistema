@@ -367,15 +367,21 @@ def migas(ruta: str):
 
 
 # ------------------------------------------------------------------ respaldos: carpeta propia del sistema en Mi unidad
-CARPETA_RESPALDOS = 'Respaldos sistema Brisas'
+CARPETA_RESPALDOS = 'Respaldos Sistema Facturación'
+NOMBRES_ANTERIORES = ['Respaldos sistema Brisas']
 
 
 def carpeta_respaldos() -> str:
-    """Id de la carpeta de respaldos creada por el sistema (la busca o la crea). Se puede mover dentro de Drive."""
-    r = _drive().files().list(q=f"name = '{CARPETA_RESPALDOS}' and mimeType = '{CARPETA}' and trashed = false",
-                              fields='files(id)', pageSize=5).execute()
-    if r.get('files'):
-        return r['files'][0]['id']
+    """Id de la carpeta de respaldos creada por el sistema (la busca o la crea). Se puede mover dentro de Drive.
+    Si existe con el nombre anterior, se renombra (es la misma carpeta y conserva sus respaldos)."""
+    for nombre in [CARPETA_RESPALDOS] + NOMBRES_ANTERIORES:
+        r = _drive().files().list(q=f"name = '{nombre}' and mimeType = '{CARPETA}' and trashed = false",
+                                  fields='files(id)', pageSize=5).execute()
+        if r.get('files'):
+            cid = r['files'][0]['id']
+            if nombre != CARPETA_RESPALDOS:
+                _drive().files().update(fileId=cid, body={'name': CARPETA_RESPALDOS}).execute()
+            return cid
     return _drive().files().create(body={'name': CARPETA_RESPALDOS, 'mimeType': CARPETA}, fields='id').execute()['id']
 
 

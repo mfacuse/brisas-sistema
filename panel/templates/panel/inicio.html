@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Inicio · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Inicio · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Panel del mes</h1><p class="sub">Siga los cinco pasos del mes de arriba hacia abajo; cada tarjeta lleva a su pantalla.</p>
 {% include 'panel/_selector.html' %}
 <div class="steps">{% for s in pasos %}<a class="step {% if s.ok %}ok{% endif %}" href="{% url s.url %}?{{ qs }}"><b>{{ s.n }}. {{ s.titulo }} {% if s.ok %}✓{% endif %}</b><span>{{ s.texto }}</span></a>{% endfor %}</div>

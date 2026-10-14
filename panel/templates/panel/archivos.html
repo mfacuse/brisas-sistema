@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% block titulo %}Archivos de contratos · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% block titulo %}Archivos de contratos · Sistema Facturación{% endblock %}
 {% block contenido %}{% if leyendo %}<meta http-equiv="refresh" content="15">{% endif %}<p class="small"><a href="{% url 'contratos' %}?sociedad={{ sociedad.id }}">← Contratos</a></p>
 <h1>Archivos de contratos</h1><p class="sub">PDF de la carpeta de contratos de {{ sociedad.nombre }}. El sistema avisa los nuevos, los cambiados y los que ya no están. «Leer con IA» propone los datos para crear o actualizar el contrato; usted revisa y aplica.</p>
 <div class="toolbar"><form method="get"><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></form>

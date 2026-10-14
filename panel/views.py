@@ -451,7 +451,7 @@ def indicador_accion(request):
 # ------------------------------------------------------------------ PWA
 def manifest(request):
     return JsonResponse({
-        'name': 'Brisas del Centro · Contratos y facturación', 'short_name': 'Brisas', 'start_url': '/', 'scope': '/',
+        'name': 'Sistema Facturación · Contratos y facturación', 'short_name': 'Facturación', 'start_url': '/', 'scope': '/',
         'display': 'standalone', 'background_color': '#f5f7fa', 'theme_color': '#1f3a5f', 'lang': 'es-CL',
         'icons': [{'src': '/static/panel/icon-192.png', 'sizes': '192x192', 'type': 'image/png'},
                   {'src': '/static/panel/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},

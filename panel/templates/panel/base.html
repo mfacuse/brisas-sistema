@@ -1,13 +1,13 @@
 {% load static formato %}<!doctype html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>{% block titulo %}Brisas del Centro{% endblock %}</title>
+<title>{% block titulo %}Sistema Facturación{% endblock %}</title>
 <meta name="theme-color" content="#1f3a5f"><link rel="manifest" href="{% url 'manifest' %}">
 <link rel="icon" href="{% static 'panel/icon-192.png' %}"><link rel="apple-touch-icon" href="{% static 'panel/icon-192.png' %}">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <link rel="stylesheet" href="{% static 'panel/app.css' %}"></head><body>
 {% if user.is_authenticated %}
-<header class="top"><div class="bar"><div class="brand">Brisas del Centro</div>
+<header class="top"><div class="bar"><div class="brand">Sistema Facturación</div>
 <nav>{% with p=request.resolver_match.url_name %}
 <a href="{% url 'inicio' %}?{{ qs }}" class="{% if p == 'inicio' %}on{% endif %}">Inicio</a>
 <a href="{% url 'facturacion' %}?{{ qs }}" class="{% if p == 'facturacion' or p == 'documento' %}on{% endif %}">Facturación</a>

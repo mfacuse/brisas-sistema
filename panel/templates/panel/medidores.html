@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Medidores · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Medidores · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Medidores de luz y gas</h1><p class="sub">Cada fila de las planillas del proveedor se asigna a un contrato. Confirme (o corrija) cada asignación; mientras esté por confirmar, las facturas que la usan quedan con advertencia.</p>
 <div class="tw"><table><tr><th>Servicio</th><th>Nº local (planilla)</th><th>Nombre (planilla)</th><th>Tarifa</th><th>Contrato</th><th>Observación</th><th>Estado</th></tr>
 {% for m in meds %}<tr><td>{{ m.get_servicio_display }}</td><td class="small">{{ m.etiqueta_local|default:"—" }}</td><td>{{ m.nombre_planilla }}</td><td class="small">{{ m.tarifa|default:"—" }}</td>

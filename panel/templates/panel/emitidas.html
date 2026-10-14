@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Facturas emitidas · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Facturas emitidas · Sistema Facturación{% endblock %}
 {% block contenido %}<p class="small"><a href="{% url 'facturacion' %}?{{ qs }}">← Facturación</a></p>
 <h1>Facturas emitidas (BSOFT / SII)</h1><p class="sub">PDF de las facturas que emitió BSOFT, leídos de la carpeta de {{ sociedad.nombre }}. Cada una se vincula con su documento del sistema: así quedan unidos el n.º interno y el folio del SII.</p>
 <div class="toolbar"><form method="get"><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select>

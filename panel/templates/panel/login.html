@@ -1,5 +1,5 @@
-{% extends 'panel/base.html' %}{% block titulo %}Ingresar · Brisas del Centro{% endblock %}
-{% block contenido %}<div class="login"><div class="card"><h1>Brisas del Centro</h1><p class="sub">Contratos y facturación</p>
+{% extends 'panel/base.html' %}{% block titulo %}Ingresar · Sistema Facturación{% endblock %}
+{% block contenido %}<div class="login"><div class="card"><h1>Sistema Facturación</h1><p class="sub">Contratos y facturación · Grupo Inverco</p>
 <form method="post">{% csrf_token %}{% if error %}<div class="msg error">{{ error }}</div>{% endif %}
 <p><label class="small muted">Usuario</label><br><input type="text" name="username" autofocus autocomplete="username" autocapitalize="none" style="width:100%"></p>
 <p><label class="small muted">Clave</label><br><input type="password" name="password" autocomplete="current-password" style="width:100%"></p>

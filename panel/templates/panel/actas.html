@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Actas de entrega · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Actas de entrega · Sistema Facturación{% endblock %}
 {% block contenido %}{% if leyendo %}<meta http-equiv="refresh" content="15">{% endif %}<p class="small"><a href="{% url 'contratos' %}?sociedad={{ sociedad.id }}">← Contratos</a></p>
 <h1>Actas de entrega de locales</h1><p class="sub">Suba el acta de cada local (PDF o foto), una por una. {% if clave %}La IA rescata la fecha de entrega, los locales, quién entrega y recibe, las lecturas de medidores y las observaciones;{% else %}Sin clave de IA los datos se completan a mano;{% endif %} usted revisa y la registra en el contrato. La fecha de entrega registrada calcula el inicio de cobro cuando el contrato lo indica.</p>
 <div class="toolbar"><form method="get"><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></form>

@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Contratos · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Contratos · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Contratos</h1><p class="sub">{{ filas|length }} contratos {% if not solo %}de {{ sociedad.nombre }}{% else %}de todas las sociedades{% endif %}. Toque un contrato para ver su detalle y simular su factura de cualquier mes.</p>
 <div class="toolbar"><form method="get"><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select>
 <input type="text" name="q" value="{{ q }}" placeholder="Buscar: código, local, razón social, RUT"> <label class="small"><input type="checkbox" name="sociedad_todas" value="1" {% if solo %}checked{% endif %} onchange="this.form.submit()"> todas las sociedades</label>

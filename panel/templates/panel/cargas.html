@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Cargas · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Cargas · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Cargas del mes</h1><p class="sub">Todo lo que se suma a las facturas de {{ periodo|mes }} además del arriendo: electricidad, gas, otros cargos y las ventas de los locales con renta variable.</p>
 {% include 'panel/_selector.html' %}
 {% if resultado %}<div class="msg success">{{ resultado.info }}</div>

@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Plano · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Plano · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>Plano de locales</h1>
 <p class="sub">Toque un local para ver su contrato. Pase el mouse sobre un local para ver arrendatario, vigencia y m².</p>
 <div class="toolbar"><form method="get"><select name="propiedad" onchange="this.form.submit()">{% for p in propiedades %}<option value="{{ p.pk }}" {% if p == prop %}selected{% endif %}>{{ p.nombre }} ({{ p.sociedad.nombre }})</option>{% endfor %}</select></form>

@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Acta {{ a.nombre }} · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Acta {{ a.nombre }} · Sistema Facturación{% endblock %}
 {% block contenido %}{% if a.estado == 'P' %}<meta http-equiv="refresh" content="10">{% endif %}<p class="small"><a href="{% url 'actas' %}?sociedad={{ a.sociedad_id }}">← Actas de entrega</a></p>
 <h1>Acta de entrega <span class="badge {% if a.estado == 'R' %}b-ok{% elif a.estado == 'E' %}b-bad{% elif a.estado == 'P' %}b-info{% else %}b-warn{% endif %}">{{ a.get_estado_display }}</span></h1>
 <p class="sub"><a href="{% url 'acta_archivo' a.pk %}" target="_blank">📄 {{ a.nombre }}</a> {% if a.url_drive %} · <a href="{{ a.url_drive }}" target="_blank">abrir en Drive</a>{% endif %} · {% if a.ruta %}desde la carpeta de actas{% else %}subida por {{ a.subida_por|default:"—" }} el {{ a.subida_en|date:"d-m-Y H:i" }}{% endif %}{% if a.costo_usd %} · lectura IA US$ {{ a.costo_usd|floatformat:2 }}{% endif %}</p>

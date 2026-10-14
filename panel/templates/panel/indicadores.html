@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}UF / IPC · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}UF / IPC · Sistema Facturación{% endblock %}
 {% block contenido %}<h1>UF e IPC</h1><p class="sub">La renta se calcula con la UF del día 1 del mes (o del primer día hábil si el contrato lo dice).</p>
 {% if n_prueba %}<div class="warnbox"><b>Hay {{ n_prueba }} valores de UF de prueba</b> (ficticios). Se reemplazan al actualizar desde la fuente oficial; no use esas facturas de verdad.</div>{% endif %}
 {% include 'panel/_selector.html' %}

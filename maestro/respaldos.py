@@ -1,4 +1,4 @@
-"""Respaldo diario de toda la base en Google Drive (carpeta «Respaldos sistema Brisas» de Mi unidad, creada por el sistema).
+"""Respaldo diario de toda la base en Google Drive (carpeta «Respaldos Sistema Facturación» de Mi unidad, creada por el sistema).
 
 Formato: JSON de Django comprimido (.json.gz), el mismo que usa la mudanza: se restaura en una base vacía con la pantalla
 «Importar datos» (Carpetas y configuración). Se conservan las últimas CONSERVAR copias."""

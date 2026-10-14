@@ -18,7 +18,7 @@ from .models import IntentoIngreso, SegundoFactor
 
 MAX_FALLAS = 5
 VENTANA = timedelta(minutes=15)
-EMISOR = 'Brisas del Centro'
+EMISOR = 'Sistema Facturación'
 LIBRES = ('/login/', '/salir/', '/cuenta/', '/static/', '/sw.js', '/manifest.webmanifest', '/offline/')
 
 

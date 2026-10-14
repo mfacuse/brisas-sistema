@@ -53,7 +53,7 @@ class PanelTests(TestCase):
             r = self.client.get(url + q)
             self.assertEqual(r.status_code, 200, url)
         self.assertContains(self.client.get('/contratos/P-01/' + q), 'Calendario de renta')
-        self.assertEqual(self.client.get('/manifest.webmanifest').json()['short_name'], 'Brisas')
+        self.assertEqual(self.client.get('/manifest.webmanifest').json()['short_name'], 'Facturación')
         self.assertIn('serviceWorker'.lower(), self.client.get('/').content.decode().lower())
 
     def test_flujo_generar_aprobar_exportar(self):

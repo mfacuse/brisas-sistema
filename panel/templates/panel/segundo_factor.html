@@ -1,4 +1,4 @@
-{% extends 'panel/base.html' %}{% block titulo %}Verificación en dos pasos · Brisas del Centro{% endblock %}
+{% extends 'panel/base.html' %}{% block titulo %}Verificación en dos pasos · Sistema Facturación{% endblock %}
 {% block contenido %}<div style="max-width:560px;margin:auto"><h1>Verificación en dos pasos</h1>
 {% if activo %}<div class="msg success">Está activada. Al ingresar se le pide el código de la app del celular.</div>
 <p><a class="btn sec" href="?nuevo=1">Configurarla en otro celular</a> <a class="btn" href="{% url 'inicio' %}">Volver</a></p>
@@ -7,5 +7,5 @@
 <li style="margin-bottom:10px">Instale en su celular <b>Google Authenticator</b> o <b>Microsoft Authenticator</b> (gratis, App Store o Google Play).</li>
 <li style="margin-bottom:10px">En la app toque «+» › «Escanear código QR» y apunte a este código:<div style="text-align:center;margin:12px 0">{{ qr|safe }}</div>
 <span class="small muted">Si no puede escanear, elija «Ingresar clave» y escriba: <b style="font-family:monospace;word-break:break-all">{{ secreto }}</b></span></li>
-<li>Escriba el código de 6 dígitos que muestra la app para «Brisas del Centro»:
+<li>Escriba el código de 6 dígitos que muestra la app para «Sistema Facturación»:
 <form method="post" style="margin-top:8px">{% csrf_token %}<input type="text" name="codigo" inputmode="numeric" autocomplete="one-time-code" maxlength="7" required style="font-size:22px;letter-spacing:5px;width:170px;text-align:center"> <button class="btn">Activar</button></form></li></ol></div>{% endif %}</div>{% endblock %}
