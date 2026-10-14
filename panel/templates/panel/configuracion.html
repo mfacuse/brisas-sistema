@@ -14,6 +14,16 @@
 <div class="form2">{% for campo in f.form %}<div class="{% if campo.name == 'datos_pago' %}ancho{% endif %}">{{ campo.label_tag }}{{ campo }}{% if campo.help_text %}<div class="help">{{ campo.help_text }}</div>{% endif %}</div>{% endfor %}</div>
 <p><button class="btn sm">Guardar datos de {{ s.nombre }}</button></p></form>
 {% else %}<p class="small">Sigla: <b>{{ s.sigla|default:"—" }}</b>{% if s.datos_pago %} · Datos de pago: <span class="pre">{{ s.datos_pago }}</span>{% endif %}</p>{% endif %}</div>{% endwith %}{% endfor %}
+<div class="card" style="margin-bottom:14px"><h2 style="margin-top:0">Google Drive</h2>
+<p class="small">Para leer las carpetas de Drive por internet (necesario en la nube), el sistema se conecta con la cuenta de Google de un administrador, con permiso de <b>solo lectura</b>. Se puede quitar en cualquier momento.</p>
+<p>Estado: {% if drive_ok %}<span class="badge b-ok">conectado{% if drive_correo %} con {{ drive_correo }}{% endif %}</span>{% else %}<span class="badge b-warn">sin conectar</span>{% endif %}</p>
+{% if puede_forzar %}{% if not drive_cliente %}<form method="post" action="{% url 'drive_cliente' %}" class="form2" autocomplete="off">{% csrf_token %}
+<div><label>ID de cliente de Google</label><input type="text" name="client_id" placeholder="….apps.googleusercontent.com"></div>
+<div><label>Secreto del cliente</label><input type="password" name="client_secret" autocomplete="new-password"></div>
+<div class="ancho"><button class="btn sm">Guardar</button> <span class="small muted">Dirección de regreso que hay que registrar en Google: <span class="ruta">{{ drive_volver }}</span></span></div></form>
+{% else %}<div class="toolbar" style="border:0;padding:0"><form method="post" action="{% url 'drive_conectar' %}">{% csrf_token %}<button class="btn sm">{% if drive_ok %}Volver a conectar{% else %}Conectar Google Drive{% endif %}</button></form>
+{% if drive_ok %}<form method="post" action="{% url 'drive_desconectar' %}" onsubmit="return confirm('¿Desconectar Google Drive?')">{% csrf_token %}<button class="btn sm bad">Desconectar</button></form>{% endif %}
+<span class="small muted">Dirección de regreso registrada en Google: <span class="ruta">{{ drive_volver }}</span></span></div>{% endif %}{% endif %}</div>
 <div class="card"><h2 style="margin-top:0">Lectura de contratos con IA</h2>
 <p class="small">La IA (Claude, de Anthropic; modelo <b>{{ modelo }}</b>) lee el PDF y propone los datos del contrato; nada se aplica sin que alguien lo apruebe. Cada lectura cuesta del orden de US$ 0,2–0,3 y el texto del contrato se envía a Anthropic. La clave se crea en <b>console.anthropic.com</b> › API Keys (cuenta de pago).</p>
 <p>Estado: {% if clave %}<span class="badge b-ok">clave configurada ({{ clave }})</span>{% else %}<span class="badge b-warn">sin clave</span>{% endif %}</p>

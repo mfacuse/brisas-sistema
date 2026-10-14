@@ -4,6 +4,7 @@ from django.urls import path
 from . import seguridad as seg
 from . import views as v
 from . import vistas_archivos as va
+from . import vistas_drive as vd
 from . import vistas_plano as vp
 
 urlpatterns = [
@@ -30,6 +31,10 @@ urlpatterns = [
     path('configuracion/guardar/', va.configuracion_guardar, name='configuracion_guardar'),
     path('configuracion/clave-ia/', va.clave_ia, name='clave_ia'),
     path('configuracion/elegir-carpeta/', va.elegir_carpeta, name='elegir_carpeta'),
+    path('configuracion/drive/cliente/', vd.guardar_cliente, name='drive_cliente'),
+    path('configuracion/drive/conectar/', vd.conectar, name='drive_conectar'),
+    path('configuracion/drive/volver/', vd.volver, name='drive_volver'),
+    path('configuracion/drive/desconectar/', vd.desconectar, name='drive_desconectar'),
     path('contratos/', v.contratos, name='contratos'),
     path('contratos/archivos/', va.archivos, name='archivos'),
     path('contratos/actas/', va.actas, name='actas'),

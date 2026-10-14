@@ -19,3 +19,4 @@ Boulevard/
 *.dwg
 *.dxf
 .env
+.google_*.json

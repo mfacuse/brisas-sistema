@@ -4,9 +4,11 @@ o desde Google Drive por internet (modo nube, en Render). Todo el resto del sist
 Rutas:
   - Mac:          ruta completa, p. ej. /Users/…/Mi unidad/Archivos Brisas del Centro/CONTRATOS/Contratos Vigentes
   - Google Drive: «gdrive:<id>» del archivo o carpeta en Drive.
-Para Drive se usa una cuenta de servicio de Google (variable de entorno GOOGLE_SERVICE_ACCOUNT_JSON con su clave, o
-GOOGLE_SERVICE_ACCOUNT_FILE con la ruta del archivo). Las carpetas se comparten con el correo de esa cuenta de servicio
-(solo lectura basta) y aparecen en el selector de carpetas.
+Para Drive hay dos formas de conectarse (se usa la primera disponible):
+  1. Cuenta de Google del administrador, autorizada una vez con «Conectar Google Drive» (permiso de solo lectura).
+     El permiso queda en el archivo privado .google_drive_token.json (carpeta de secretos) y el ID de cliente de Google en
+     .google_oauth_cliente.json (o variables GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET). Ver `panel/vistas_drive.py`.
+  2. Cuenta de servicio (GOOGLE_SERVICE_ACCOUNT_JSON o GOOGLE_SERVICE_ACCOUNT_FILE), con las carpetas compartidas con su correo.
 """
 import io
 import json
@@ -68,13 +70,61 @@ def _drive_id_local(ruta: str) -> str:
 _servicio = None
 
 
-def drive_configurado() -> bool:
+ALCANCE = 'https://www.googleapis.com/auth/drive.readonly'
+
+
+def _secretos() -> Path:
+    return Path(getattr(settings, 'SECRETOS_DIR', settings.BASE_DIR))
+
+
+def _ruta_token() -> Path:
+    return _secretos() / '.google_drive_token.json'
+
+
+def _ruta_cliente() -> Path:
+    return _secretos() / '.google_oauth_cliente.json'
+
+
+def guardar_privado(ruta: Path, datos: dict):
+    fd = os.open(ruta, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, 'w', encoding='utf-8') as fh:
+        json.dump(datos, fh)
+    os.chmod(ruta, 0o600)
+
+
+def cliente_oauth() -> dict:
+    """{'client_id', 'client_secret'} de la app de Google (variables de entorno o archivo privado), o {}."""
+    if os.environ.get('GOOGLE_OAUTH_CLIENT_ID') and os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'):
+        return {'client_id': os.environ['GOOGLE_OAUTH_CLIENT_ID'], 'client_secret': os.environ['GOOGLE_OAUTH_CLIENT_SECRET']}
+    if _ruta_cliente().exists():
+        return json.loads(_ruta_cliente().read_text())
+    return {}
+
+
+def token_oauth() -> dict:
+    return json.loads(_ruta_token().read_text()) if _ruta_token().exists() else {}
+
+
+def _cuenta_servicio() -> bool:
     return bool(os.environ.get('GOOGLE_SERVICE_ACCOUNT_JSON') or os.environ.get('GOOGLE_SERVICE_ACCOUNT_FILE'))
 
 
+def drive_configurado() -> bool:
+    return bool(token_oauth().get('refresh_token') and cliente_oauth()) or _cuenta_servicio()
+
+
+def olvidar_conexion():
+    global _servicio
+    _ruta_token().unlink(missing_ok=True)
+    _servicio = None
+
+
 def correo_cuenta_servicio() -> str:
+    """Correo con el que el sistema entra a Drive (la cuenta autorizada o la cuenta de servicio)."""
+    if token_oauth().get('correo'):
+        return token_oauth()['correo']
     try:
-        return _credenciales_info().get('client_email', '')
+        return _credenciales_info().get('client_email', '') if _cuenta_servicio() else ''
     except Exception:
         return ''
 
@@ -88,10 +138,15 @@ def _credenciales_info() -> dict:
 def _drive():
     global _servicio
     if _servicio is None:
-        from google.oauth2 import service_account
         from googleapiclient.discovery import build
-        cred = service_account.Credentials.from_service_account_info(
-            _credenciales_info(), scopes=['https://www.googleapis.com/auth/drive.readonly'])
+        tok, cli = token_oauth(), cliente_oauth()
+        if tok.get('refresh_token') and cli:
+            from google.oauth2.credentials import Credentials
+            cred = Credentials(None, refresh_token=tok['refresh_token'], token_uri='https://oauth2.googleapis.com/token',
+                               client_id=cli['client_id'], client_secret=cli['client_secret'], scopes=[ALCANCE])
+        else:
+            from google.oauth2 import service_account
+            cred = service_account.Credentials.from_service_account_info(_credenciales_info(), scopes=[ALCANCE])
         _servicio = build('drive', 'v3', credentials=cred, cache_discovery=False)
     return _servicio
 
@@ -221,10 +276,14 @@ def nombre(ruta: str) -> str:
 def raices():
     """[(nombre, ruta)] para empezar a navegar: carpetas del Mac y carpetas de Drive compartidas con el sistema."""
     out = [(r.name, str(r)) for r in raices_locales()]
+    if drive_configurado() and token_oauth().get('refresh_token'):
+        out.append(('Drive · Mi unidad', PREFIJO + _drive().files().get(fileId='root', fields='id').execute()['id']))
     if drive_configurado():
         r = _drive().files().list(q=f"sharedWithMe = true and trashed = false and (mimeType = '{CARPETA}' or mimeType = '{ATAJO}')",
                                   fields=f'files({CAMPOS})', pageSize=200, supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
-        out += sorted(((f'Drive · {f["name"]}', PREFIJO + _resolver(f)['id']) for f in r.get('files', [])), key=lambda x: x[0].lower())
+        compartidas = sorted(((f'Drive · Compartido conmigo · {f["name"]}', PREFIJO + _resolver(f)['id']) for f in r.get('files', [])),
+                             key=lambda x: x[0].lower())
+        out += compartidas
     return out
 
 
@@ -246,7 +305,7 @@ def migas(ruta: str):
         raices_ids = {r for _, r in raices() if es_drive(r)}
         while actual and vueltas < 15:
             f = _drive().files().get(fileId=actual, fields='id, name, parents', supportsAllDrives=True).execute()
-            out.insert(0, (f['name'], PREFIJO + f['id']))
+            out.insert(0, (f['name'] if f.get('parents') else 'Mi unidad', PREFIJO + f['id']))
             if PREFIJO + f['id'] in raices_ids:
                 break
             actual = (f.get('parents') or [None])[0]

@@ -72,6 +72,8 @@ def configuracion(request):
         filas.append(dict(s=s, form=SociedadForm(instance=s, prefix=f's{s.pk}'),
                           pendientes=s.archivos_contrato.filter(estado__in=('N', 'C'), ignorar=False).count(),
                           archivos=s.archivos_contrato.exclude(estado='E').count()))
+    c.update(drive_ok=almacen.drive_configurado(), drive_correo=almacen.correo_cuenta_servicio(), drive_cliente=bool(almacen.cliente_oauth()),
+             drive_volver=request.build_absolute_uri(reverse('drive_volver')))
     c.update(filas=filas, clave=ia.clave_configurada(), modelo=ia.settings.IA_MODELO,
              historial=RegistroCambio.objects.filter(objeto='Sociedad')[:20])
     return render(request, 'panel/configuracion.html', c)

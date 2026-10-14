@@ -541,7 +541,7 @@ class DriveTest(Base):
             self.assertEqual(almacen.validar_carpeta('gdrive:raiz'), 'gdrive:raiz')
             with self.assertRaises(almacen.CarpetaNoPermitida):
                 almacen.validar_carpeta('gdrive:f1')   # un archivo no es carpeta
-            self.assertIn(('Drive · Contratos Vigentes', 'gdrive:raiz'), almacen.raices())
+            self.assertIn(('Drive · Compartido conmigo · Contratos Vigentes', 'gdrive:raiz'), almacen.raices())
             self.assertEqual(almacen.subcarpetas('gdrive:raiz'), [('Antiguos', 'gdrive:sub')])
         self.assertEqual(almacen.correo_cuenta_servicio(), 'brisas@proyecto.iam.gserviceaccount.com')
 
