@@ -539,3 +539,23 @@ class TextosLargosTest(Base):
             carga = asignacion.preparar(self.soc, 'AGUA', filas, date(2026, 9, 1), date(2026, 10, 1), 'x' * 300 + '.xlsx', 'op')
             asignacion.confirmar(carga, {2: 'P-01'}, 'op')
         self.assertEqual(ConsumoServicio.objects.get().neto, 7000)
+
+
+class TramosSuperpuestosTest(Base):
+    def test_dos_tramos_a_la_vez_dejan_advertencia_y_no_se_aprueba(self):
+        """Caso O-01 (2026-10-14): los cuatro tramos quedaron con el mismo «desde» y el sistema cobraba uno sin avisar."""
+        TramoRenta.objects.create(contrato=self.fa, desde=date(2025, 1, 1), monto=D('30'), unidad='UF')
+        servicios.generar_borradores(self.soc, 2026, 10)
+        doc = Documento.objects.get(contrato=self.fa)
+        self.assertTrue(any('tramos de renta vigentes a la vez' in a and '27' in a and '30' in a for a in doc.advertencias))
+        servicios.aprobar(self.soc, 2026, 10, 'op')
+        doc.refresh_from_db()
+        self.assertEqual(doc.estado, 'B')   # queda en borrador hasta corregir las fechas
+
+    def test_tramos_consecutivos_no_avisan(self):
+        TramoRenta.objects.filter(contrato=self.fa).update(hasta=date(2026, 9, 30))
+        TramoRenta.objects.create(contrato=self.fa, desde=date(2026, 10, 1), monto=D('30'), unidad='UF')
+        servicios.generar_borradores(self.soc, 2026, 10)
+        doc = Documento.objects.get(contrato=self.fa)
+        self.assertFalse(any('a la vez' in a for a in doc.advertencias))
+        self.assertIn('30', doc.lineas.get(origen='RENTA').detalle)

@@ -161,6 +161,18 @@ def tramo_en(c: ContratoD, d: date) -> Optional[TramoD]:
     return None
 
 
+def tramos_superpuestos(c: ContratoD, año: int, mes: int) -> list:
+    """Advertencia si en el mes rigen a la vez dos tramos con montos distintos (p. ej. todos con la misma fecha «desde»):
+    el sistema no puede saber cuál cobrar y no debe elegir uno en silencio."""
+    for d in (date(año, mes, 1), date(año, mes, calendar.monthrange(año, mes)[1])):
+        cand = [t for t in c.tramos if t.desde <= d and (t.hasta is None or d <= t.hasta)]
+        if len({(t.monto, t.unidad) for t in cand}) > 1:
+            montos = ', '.join(f'{fmt_uf(t.monto)} UF' if t.unidad == 'UF' else fmt_clp(t.monto) for t in sorted(cand, key=lambda t: t.desde))
+            return [f'Hay {len(cand)} tramos de renta vigentes a la vez el {fmt_fecha(d)} ({montos}): '
+                    'corrija las fechas «desde/hasta» de los tramos del contrato antes de aprobar.']
+    return []
+
+
 def _rangos(dias: list) -> str:
     """Convierte [d1, d2, d3, d7] en '01-10-2026 a 03-10-2026 y 07-10-2026'."""
     if not dias:
@@ -224,7 +236,7 @@ def renta_base(c: ContratoD, año: int, mes: int, uf_fn: Callable[[date], Decima
         _renta_semestral(c, año, mes, r, ipc_fn)
         return r
     total, det, adv = _monto_mes(c, año, mes)
-    r.advertencias += adv
+    r.advertencias += adv + tramos_superpuestos(c, año, mes)
     for unidad, monto in total.items():
         if monto == 0:
             r.notas.append('Renta del mes en 0: período de gracia o devengo aún no iniciado.')
