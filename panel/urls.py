@@ -38,6 +38,7 @@ urlpatterns = [
     path('configuracion/drive/conectar/', vd.conectar, name='drive_conectar'),
     path('configuracion/drive/volver/', vd.volver, name='drive_volver'),
     path('configuracion/drive/desconectar/', vd.desconectar, name='drive_desconectar'),
+    path('configuracion/respaldar/', vd.respaldar_ahora, name='respaldar_ahora'),
     path('contratos/', v.contratos, name='contratos'),
     path('contratos/archivos/', va.archivos, name='archivos'),
     path('contratos/actas/', va.actas, name='actas'),

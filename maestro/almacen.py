@@ -70,7 +70,38 @@ def _drive_id_local(ruta: str) -> str:
 _servicio = None
 
 
-ALCANCE = 'https://www.googleapis.com/auth/drive.readonly'
+ALCANCE = 'https://www.googleapis.com/auth/drive.readonly'          # leer las carpetas
+ALCANCE_RESPALDOS = 'https://www.googleapis.com/auth/drive.file'     # crear/borrar SOLO los archivos que el sistema crea (respaldos)
+ALCANCES = [ALCANCE, ALCANCE_RESPALDOS]
+
+
+# ------------------------------------------------------------------ datos privados (en la base: los ven la web y la tarea diaria)
+def leer_dato(clave: str, archivo_antiguo: Path = None):
+    """Valor guardado en DatoSistema; si aún está en un archivo de la versión anterior, se traslada a la base."""
+    from .models import DatoSistema
+    d = DatoSistema.objects.filter(clave=clave).first()
+    if d:
+        return d.valor
+    if archivo_antiguo is not None and archivo_antiguo.exists():
+        try:
+            valor = json.loads(archivo_antiguo.read_text())
+        except ValueError:
+            valor = archivo_antiguo.read_text().strip()
+        guardar_dato(clave, valor)
+        return valor
+    return None
+
+
+def guardar_dato(clave: str, valor):
+    from .models import DatoSistema
+    DatoSistema.objects.update_or_create(clave=clave, defaults={'valor': valor})
+
+
+def borrar_dato(clave: str, archivo_antiguo: Path = None):
+    from .models import DatoSistema
+    DatoSistema.objects.filter(clave=clave).delete()
+    if archivo_antiguo is not None:
+        archivo_antiguo.unlink(missing_ok=True)
 
 
 def _secretos() -> Path:
@@ -96,13 +127,26 @@ def cliente_oauth() -> dict:
     """{'client_id', 'client_secret'} de la app de Google (variables de entorno o archivo privado), o {}."""
     if os.environ.get('GOOGLE_OAUTH_CLIENT_ID') and os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET'):
         return {'client_id': os.environ['GOOGLE_OAUTH_CLIENT_ID'], 'client_secret': os.environ['GOOGLE_OAUTH_CLIENT_SECRET']}
-    if _ruta_cliente().exists():
-        return json.loads(_ruta_cliente().read_text())
-    return {}
+    return leer_dato('google_oauth_cliente', _ruta_cliente()) or {}
 
 
 def token_oauth() -> dict:
-    return json.loads(_ruta_token().read_text()) if _ruta_token().exists() else {}
+    return leer_dato('google_drive_token', _ruta_token()) or {}
+
+
+def guardar_cliente(datos: dict):
+    guardar_dato('google_oauth_cliente', datos)
+
+
+def guardar_token(datos: dict):
+    global _servicio
+    guardar_dato('google_drive_token', datos)
+    _servicio = None
+
+
+def puede_respaldar() -> bool:
+    """La conexión con Google incluye el permiso para crear los archivos de respaldo."""
+    return ALCANCE_RESPALDOS in (token_oauth().get('alcances') or '')
 
 
 def _cuenta_servicio() -> bool:
@@ -115,7 +159,7 @@ def drive_configurado() -> bool:
 
 def olvidar_conexion():
     global _servicio
-    _ruta_token().unlink(missing_ok=True)
+    borrar_dato('google_drive_token', _ruta_token())
     _servicio = None
 
 
@@ -143,7 +187,8 @@ def _drive():
         if tok.get('refresh_token') and cli:
             from google.oauth2.credentials import Credentials
             cred = Credentials(None, refresh_token=tok['refresh_token'], token_uri='https://oauth2.googleapis.com/token',
-                               client_id=cli['client_id'], client_secret=cli['client_secret'], scopes=[ALCANCE])
+                               client_id=cli['client_id'], client_secret=cli['client_secret'],
+                               scopes=(tok.get('alcances') or ALCANCE).split())
         else:
             from google.oauth2 import service_account
             cred = service_account.Credentials.from_service_account_info(_credenciales_info(), scopes=[ALCANCE])
@@ -319,3 +364,33 @@ def migas(ruta: str):
         if p == raiz:
             return out
         p = p.parent
+
+
+# ------------------------------------------------------------------ respaldos: carpeta propia del sistema en Mi unidad
+CARPETA_RESPALDOS = 'Respaldos sistema Brisas'
+
+
+def carpeta_respaldos() -> str:
+    """Id de la carpeta de respaldos creada por el sistema (la busca o la crea). Se puede mover dentro de Drive."""
+    r = _drive().files().list(q=f"name = '{CARPETA_RESPALDOS}' and mimeType = '{CARPETA}' and trashed = false",
+                              fields='files(id)', pageSize=5).execute()
+    if r.get('files'):
+        return r['files'][0]['id']
+    return _drive().files().create(body={'name': CARPETA_RESPALDOS, 'mimeType': CARPETA}, fields='id').execute()['id']
+
+
+def subir(carpeta_id: str, nombre: str, contenido: bytes, tipo='application/gzip') -> dict:
+    from googleapiclient.http import MediaIoBaseUpload
+    media = MediaIoBaseUpload(io.BytesIO(contenido), mimetype=tipo, resumable=False)
+    return _drive().files().create(body={'name': nombre, 'parents': [carpeta_id]}, media_body=media, fields='id, name, size').execute()
+
+
+def archivos_de(carpeta_id: str):
+    """Archivos (creados por el sistema) dentro de la carpeta, del más nuevo al más antiguo."""
+    r = _drive().files().list(q=f"'{carpeta_id}' in parents and trashed = false", fields='files(id, name, size, createdTime)',
+                              orderBy='createdTime desc', pageSize=200).execute()
+    return r.get('files', [])
+
+
+def borrar(archivo_id: str):
+    _drive().files().delete(fileId=archivo_id).execute()

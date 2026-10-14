@@ -508,3 +508,18 @@ class LocalPlano(models.Model):
 
     class Meta:
         ordering = ['piso', 'etiqueta']
+
+
+class DatoSistema(models.Model):
+    """Datos privados y de estado del sistema compartidos por el servidor web y la tarea diaria de la nube
+    (permiso de Google Drive, cliente de Google, clave de la IA, último respaldo). No se muestran en pantalla."""
+    clave = models.CharField(max_length=60, unique=True)
+    valor = models.JSONField(default=dict)
+    actualizado = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'dato privado del sistema'
+        verbose_name_plural = 'datos privados del sistema'
+
+    def __str__(self):
+        return self.clave

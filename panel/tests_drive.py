@@ -28,12 +28,13 @@ class ConexionDriveTest(TestCase):
         self.client.post('/configuracion/drive/cliente/', {'client_id': 'malo', 'client_secret': 's'})
         self.assertEqual(almacen.cliente_oauth(), {})
         self.client.post('/configuracion/drive/cliente/', {'client_id': '123-abc.apps.googleusercontent.com', 'client_secret': 'secreto'})
-        self.assertEqual(oct(os.stat(almacen._ruta_cliente()).st_mode & 0o777), '0o600')
+        self.assertEqual(almacen.cliente_oauth()['client_id'], '123-abc.apps.googleusercontent.com')
         r = self.client.post('/configuracion/drive/conectar/')
         url = urlparse(r['Location'])
         q = parse_qs(url.query)
         self.assertEqual(url.netloc, 'accounts.google.com')
         self.assertIn('drive.readonly', q['scope'][0])
+        self.assertIn('drive.file', q['scope'][0])   # permiso acotado para los respaldos
         self.assertEqual(q['access_type'], ['offline'])
         # un regreso con otro «state» se rechaza
         self.client.get('/configuracion/drive/volver/', {'state': 'otro', 'code': 'x'})
@@ -41,12 +42,13 @@ class ConexionDriveTest(TestCase):
         self.client.post('/configuracion/drive/conectar/')
         estado = self.client.session['drive_estado']
         carga = base64.urlsafe_b64encode(json.dumps({'email': 'mfacuse@invercochile.com'}).encode()).decode().rstrip('=')
-        with mock.patch.object(vistas_drive, '_post', return_value={'refresh_token': 'rt', 'id_token': f'a.{carga}.b'}) as post:
+        alc = 'https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file openid'
+        with mock.patch.object(vistas_drive, '_post', return_value={'refresh_token': 'rt', 'id_token': f'a.{carga}.b', 'scope': alc}) as post:
             r = self.client.get('/configuracion/drive/volver/', {'state': estado, 'code': 'codigo'}, follow=True)
         self.assertEqual(post.call_args[0][1]['grant_type'], 'authorization_code')
         self.assertContains(r, 'conectado con mfacuse@invercochile.com')
         self.assertTrue(almacen.drive_configurado())
-        self.assertEqual(oct(os.stat(almacen._ruta_token()).st_mode & 0o777), '0o600')
+        self.assertTrue(almacen.puede_respaldar())
         with mock.patch.object(vistas_drive, '_post', return_value={}):
             self.client.post('/configuracion/drive/desconectar/')
         self.assertFalse(almacen.drive_configurado())
@@ -57,6 +59,41 @@ class ConexionDriveTest(TestCase):
         self.assertEqual(self.client.post('/configuracion/drive/conectar/').status_code, 403)
 
     def test_desde_127_0_0_1_lleva_a_localhost(self):
-        almacen.guardar_privado(almacen._ruta_cliente(), {'client_id': '1-a.apps.googleusercontent.com', 'client_secret': 's'})
+        almacen.guardar_cliente({'client_id': '1-a.apps.googleusercontent.com', 'client_secret': 's'})
         r = self.client.post('/configuracion/drive/conectar/', HTTP_HOST='127.0.0.1:8000')
         self.assertEqual(r['Location'], 'http://localhost:8000/configuracion/?drive=localhost')
+
+
+
+class RespaldoTest(TestCase):
+    def setUp(self):
+        self.admin = User.objects.create_superuser('admin', password='x')
+        self.client.force_login(self.admin)
+
+    def test_respaldo_en_drive_conserva_60_y_se_puede_restaurar(self):
+        import gzip
+        from maestro import respaldos
+        from maestro.models import Sociedad
+        Sociedad.objects.create(nombre='Soc Respaldo', rut='9-9', sigla='SR')
+        almacen.guardar_cliente({'client_id': 'x.apps.googleusercontent.com', 'client_secret': 's'})
+        almacen.guardar_token({'refresh_token': 'rt', 'alcances': almacen.ALCANCE + ' ' + almacen.ALCANCE_RESPALDOS})
+        subidos, borrados = [], []
+        viejos = [{'id': f'v{i}', 'name': f'brisas_2026-01-{i:02d}.json.gz'} for i in range(1, 63)]
+        with mock.patch.object(almacen, 'carpeta_respaldos', return_value='car'), \
+                mock.patch.object(almacen, 'subir', side_effect=lambda c, n, b: subidos.append((c, n, b))), \
+                mock.patch.object(almacen, 'archivos_de', return_value=viejos), \
+                mock.patch.object(almacen, 'borrar', side_effect=borrados.append):
+            r = self.client.post('/configuracion/respaldar/', follow=True)
+        self.assertContains(r, 'guardado en Google Drive')
+        carpeta, nombre, contenido = subidos[0]
+        self.assertTrue(nombre.startswith('brisas_') and nombre.endswith('.json.gz'))
+        self.assertEqual(len(borrados), 2)   # quedan 60
+        self.assertIn(b'Soc Respaldo', gzip.decompress(contenido))
+        self.assertEqual(respaldos.ultimo()['nombre'], nombre)
+        self.assertContains(self.client.get('/configuracion/'), nombre)
+
+    def test_sin_permiso_de_escritura_avisa(self):
+        almacen.guardar_cliente({'client_id': 'x.apps.googleusercontent.com', 'client_secret': 's'})
+        almacen.guardar_token({'refresh_token': 'rt', 'alcances': almacen.ALCANCE})   # conexión antigua: solo lectura
+        r = self.client.post('/configuracion/respaldar/', follow=True)
+        self.assertContains(r, 'Volver a conectar Google Drive')

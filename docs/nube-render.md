@@ -55,3 +55,9 @@ Probado el 2026-10-14 con una base vacía: 1.956 registros, 48 contratos, 52 ví
 Copia → `preparar_nube` → base nueva → `loaddata` → `revisar_carpetas` solo por Drive (`DJANGO_CARPETAS_RAIZ=""`): 0 archivos nuevos o
 perdidos por la mudanza, 65 archivos con su contrato, 97 actas, planos reconstruidos (27 + 19 + 10 locales). ~47 s la primera vez
 (descarga el plano de 250 MB); después solo relee lo que cambia.
+
+## Respaldos (2026-10-14)
+- Render: respaldo diario propio de PostgreSQL.
+- Además, por pedido de Matías: cada día a las 8:00 (tarea `brisas-diario`) y con el botón «Respaldar ahora», copia completa en Google Drive,
+  carpeta «Respaldos sistema Brisas» (Mi unidad), últimas 60. Requiere reconectar Drive una vez para aceptar el permiso `drive.file`.
+- Restaurar: base vacía → Carpetas y configuración › «Importar datos» (o `/configuracion/importar-datos/`) con el .json.gz.

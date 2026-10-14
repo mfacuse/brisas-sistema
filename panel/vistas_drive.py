@@ -44,7 +44,7 @@ def guardar_cliente(request):
     if not cid.endswith('.apps.googleusercontent.com') or not sec:
         messages.error(request, 'Revise el ID de cliente (termina en .apps.googleusercontent.com) y el secreto.')
     else:
-        almacen.guardar_privado(almacen._ruta_cliente(), {'client_id': cid, 'client_secret': sec})
+        almacen.guardar_cliente({'client_id': cid, 'client_secret': sec})
         messages.success(request, 'ID de cliente de Google guardado. Ahora pulse «Conectar Google Drive».')
     return redirect('configuracion')
 
@@ -63,7 +63,7 @@ def conectar(request):
         return redirect(f'http://localhost:{puerto}{reverse("configuracion")}?drive=localhost')
     request.session['drive_estado'] = estado = secrets.token_urlsafe(24)
     q = urllib.parse.urlencode({'client_id': cli['client_id'], 'redirect_uri': _volver(request), 'response_type': 'code',
-                                'scope': almacen.ALCANCE + ' openid email', 'access_type': 'offline', 'prompt': 'consent',
+                                'scope': ' '.join(almacen.ALCANCES) + ' openid email', 'access_type': 'offline', 'prompt': 'consent',
                                 'include_granted_scopes': 'true', 'state': estado})
     return redirect(f'{AUTORIZAR}?{q}')
 
@@ -95,8 +95,21 @@ def volver(request):
     except Exception:
         pass
     almacen.olvidar_conexion()
-    almacen.guardar_privado(almacen._ruta_token(), {'refresh_token': r['refresh_token'], 'correo': correo, 'conectado_por': request.user.get_username()})
+    alcances = ' '.join(a for a in r.get('scope', almacen.ALCANCE).split() if 'drive' in a)
+    almacen.guardar_token({'refresh_token': r['refresh_token'], 'correo': correo, 'conectado_por': request.user.get_username(), 'alcances': alcances})
     messages.success(request, f'Google Drive conectado{f" con {correo}" if correo else ""} (solo lectura). Ya puede elegir las carpetas de Drive.')
+    return redirect('configuracion')
+
+
+@requiere_admin
+@require_POST
+def respaldar_ahora(request):
+    from maestro import respaldos
+    try:
+        r = respaldos.respaldar()
+        messages.success(request, f'Respaldo {r["nombre"]} ({r["kb"]} KB) guardado en Google Drive › {almacen.CARPETA_RESPALDOS}.')
+    except Exception as e:
+        messages.error(request, f'No se pudo respaldar: {e}')
     return redirect('configuracion')
 
 

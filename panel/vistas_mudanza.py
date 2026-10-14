@@ -18,14 +18,17 @@ def importar_datos(request):
     vacia = not Contrato.objects.exists()
     if request.method == 'POST' and vacia:
         f = request.FILES.get('archivo')
-        if not f or not f.name.endswith('.json'):
-            messages.error(request, 'Elija el archivo .json de la mudanza.')
+        if not f or not (f.name.endswith('.json') or f.name.endswith('.json.gz')):
+            messages.error(request, 'Elija el archivo .json de la mudanza o un respaldo .json.gz.')
             return redirect('importar_datos')
         fd, tmp = tempfile.mkstemp(suffix='.json')
         try:
+            datos = b''.join(f.chunks())
+            if f.name.endswith('.gz'):
+                import gzip
+                datos = gzip.decompress(datos)
             with os.fdopen(fd, 'wb') as fh:
-                for parte in f.chunks():
-                    fh.write(parte)
+                fh.write(datos)
             with transaction.atomic():
                 call_command('loaddata', tmp, verbosity=0)
         except Exception as e:

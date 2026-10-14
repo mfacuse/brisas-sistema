@@ -1,5 +1,5 @@
 {% extends 'panel/base.html' %}{% block titulo %}Importar datos · Brisas del Centro{% endblock %}
 {% block contenido %}<div style="max-width:620px;margin:auto"><h1>Importar datos (mudanza a la nube)</h1>
-{% if vacia %}<p class="sub">Suba el archivo <b>.json</b> preparado en el Mac. Se carga una sola vez: contratos, documentos, historial, usuarios (con sus claves) y configuración. Si algo falla, no se guarda nada.</p>
-<form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}<p><input type="file" name="archivo" accept=".json" required></p><button class="btn" onclick="return confirm('¿Cargar los datos en esta base?')">Importar</button></form>
+{% if vacia %}<p class="sub">Suba el archivo <b>.json</b> preparado en el Mac, o un respaldo <b>.json.gz</b> de la carpeta «Respaldos sistema Brisas» de Drive. Se carga una sola vez: contratos, documentos, historial, usuarios (con sus claves) y configuración. Si algo falla, no se guarda nada.</p>
+<form method="post" enctype="multipart/form-data" class="card">{% csrf_token %}<p><input type="file" name="archivo" accept=".json,.gz" required></p><button class="btn" onclick="return confirm('¿Cargar los datos en esta base?')">Importar</button></form>
 {% else %}<div class="notebox">Esta base ya tiene datos ({{ n }} contratos). Por seguridad, la importación solo funciona en una base vacía.</div>{% endif %}</div>{% endblock %}

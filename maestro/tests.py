@@ -242,14 +242,18 @@ class IATest(Base):
             with self.assertRaises(ia.SinClave):
                 ia.iniciar(self.archivo, 'op')
 
-    def test_clave_se_guarda_privada_y_no_se_muestra(self):
+    def test_clave_se_guarda_en_la_base_y_no_se_muestra(self):
+        from .models import DatoSistema
         ruta = self.raiz / '.clave_anthropic'
+        ruta.write_text('sk-ant-prueba-antigua-9999')   # clave de la versión anterior (archivo): se traslada a la base
         with mock.patch.dict(os.environ, {'ANTHROPIC_API_KEY': ''}), mock.patch.object(ia, '_ruta_clave', return_value=ruta):
+            self.assertEqual(ia.clave_configurada(), '…9999')
+            self.assertTrue(DatoSistema.objects.filter(clave='clave_anthropic').exists())
             ia.guardar_clave('sk-ant-prueba-secreta-1234')
-            self.assertEqual(oct(ruta.stat().st_mode & 0o777), '0o600')
             self.assertEqual(ia.clave_configurada(), '…1234')
-            ia.guardar_clave('')
             self.assertFalse(ruta.exists())
+            ia.guardar_clave('')
+            self.assertEqual(ia.clave_configurada(), '')
 
 
 # ------------------------------------------------------------------ pantallas y permisos

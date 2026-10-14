@@ -37,17 +37,13 @@ def _ruta_clave() -> Path:
 
 
 def clave_api():
+    k = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+    if not k:
+        k = (almacen.leer_dato('clave_anthropic', _ruta_clave()) or '').strip()
     if getattr(settings, 'PRUEBAS', False):
         # en las pruebas automáticas nunca se usa la clave real (ni el archivo ni la variable de entorno), solo claves de prueba
-        k = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-        if not k and _ruta_clave().exists():
-            k = _ruta_clave().read_text(encoding='utf-8').strip()
         return k if k.startswith('sk-ant-prueba') else ''
-    k = os.environ.get('ANTHROPIC_API_KEY', '').strip()
-    if k:
-        return k
-    p = _ruta_clave()
-    return p.read_text(encoding='utf-8').strip() if p.exists() else ''
+    return k
 
 
 def clave_configurada() -> str:
@@ -58,14 +54,11 @@ def clave_configurada() -> str:
 
 def guardar_clave(texto: str):
     texto = texto.strip()
-    p = _ruta_clave()
     if not texto:
-        p.unlink(missing_ok=True)
+        almacen.borrar_dato('clave_anthropic', _ruta_clave())
         return
-    fd = os.open(p, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as f:
-        f.write(texto + '\n')
-    os.chmod(p, 0o600)
+    almacen.guardar_dato('clave_anthropic', texto)
+    _ruta_clave().unlink(missing_ok=True)
 
 
 # ------------------------------------------------------------------ qué se le pide a la IA

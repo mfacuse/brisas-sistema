@@ -25,6 +25,12 @@
 {% else %}<div class="toolbar" style="border:0;padding:0"><form method="post" action="{% url 'drive_conectar' %}">{% csrf_token %}<button class="btn sm">{% if drive_ok %}Volver a conectar{% else %}Conectar Google Drive{% endif %}</button></form>
 {% if drive_ok %}<form method="post" action="{% url 'drive_desconectar' %}" onsubmit="return confirm('¿Desconectar Google Drive?')">{% csrf_token %}<button class="btn sm bad">Desconectar</button></form>{% endif %}
 <span class="small muted">Dirección de regreso registrada en Google: <span class="ruta">{{ drive_volver }}</span></span></div>{% endif %}{% endif %}</div>
+<div class="card" style="margin-bottom:14px"><h2 style="margin-top:0">Respaldos en Google Drive</h2>
+<p class="small">Cada día (8:00) se guarda una copia completa de la base en la carpeta <b>«Respaldos sistema Brisas»</b> de Mi unidad (se conservan las últimas 60). La carpeta la crea el sistema y se puede mover dentro de Drive. Para restaurar, el archivo se carga en una base vacía con «Importar datos».</p>
+{% if respaldo.fecha %}<p>Último respaldo: <b>{{ respaldo.fecha_dt|date:"d-m-Y H:i" }}</b> · {{ respaldo.nombre }} ({{ respaldo.kb }} KB) · <a href="https://drive.google.com/drive/folders/{{ respaldo.carpeta }}" target="_blank">abrir la carpeta en Drive</a></p>{% else %}<p class="muted">Aún no hay respaldos en Drive.</p>{% endif %}
+{% if respaldo.error %}<div class="warnbox">El último intento ({{ respaldo.fecha_error_dt|date:"d-m-Y H:i" }}) falló: {{ respaldo.error }}</div>{% endif %}
+{% if drive_ok and not puede_respaldar %}<div class="notebox">Para activar los respaldos pulse <b>«Volver a conectar Google Drive»</b> (arriba) y acepte el permiso nuevo: el sistema solo podrá crear y borrar los archivos de respaldo que él mismo crea.</div>{% endif %}
+{% if puede_forzar and puede_respaldar %}<form method="post" action="{% url 'respaldar_ahora' %}">{% csrf_token %}<button class="btn sm">Respaldar ahora</button></form>{% endif %}</div>
 <div class="card"><h2 style="margin-top:0">Lectura de contratos con IA</h2>
 <p class="small">La IA (Claude, de Anthropic; modelo <b>{{ modelo }}</b>) lee el PDF y propone los datos del contrato; nada se aplica sin que alguien lo apruebe. Cada lectura cuesta del orden de US$ 0,2–0,3 y el texto del contrato se envía a Anthropic. La clave se crea en <b>console.anthropic.com</b> › API Keys (cuenta de pago).</p>
 <p>Estado: {% if clave %}<span class="badge b-ok">clave configurada ({{ clave }})</span>{% else %}<span class="badge b-warn">sin clave</span>{% endif %}</p>

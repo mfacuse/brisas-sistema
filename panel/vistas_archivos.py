@@ -73,7 +73,9 @@ def configuracion(request):
                           pendientes=s.archivos_contrato.filter(estado__in=('N', 'C'), ignorar=False).count(),
                           archivos=s.archivos_contrato.exclude(estado='E').count()))
     c.update(drive_ok=almacen.drive_configurado(), drive_correo=almacen.correo_cuenta_servicio(), drive_cliente=bool(almacen.cliente_oauth()),
-             drive_volver=request.build_absolute_uri(reverse('drive_volver')))
+             drive_volver=request.build_absolute_uri(reverse('drive_volver')), puede_respaldar=almacen.puede_respaldar())
+    from maestro import respaldos
+    c['respaldo'] = respaldos.ultimo()
     c.update(filas=filas, clave=ia.clave_configurada(), modelo=ia.settings.IA_MODELO,
              historial=RegistroCambio.objects.filter(objeto='Sociedad')[:20])
     return render(request, 'panel/configuracion.html', c)
