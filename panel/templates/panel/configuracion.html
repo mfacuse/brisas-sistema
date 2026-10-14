@@ -14,6 +14,7 @@
 <div class="form2">{% for campo in f.form %}<div class="{% if campo.name == 'datos_pago' %}ancho{% endif %}">{{ campo.label_tag }}{{ campo }}{% if campo.help_text %}<div class="help">{{ campo.help_text }}</div>{% endif %}</div>{% endfor %}</div>
 <p><button class="btn sm">Guardar datos de {{ s.nombre }}</button></p></form>
 {% else %}<p class="small">Sigla: <b>{{ s.sigla|default:"—" }}</b>{% if s.datos_pago %} · Datos de pago: <span class="pre">{{ s.datos_pago }}</span>{% endif %}</p>{% endif %}</div>{% endwith %}{% endfor %}
+{% if request.GET.drive == 'localhost' %}<div class="notebox">Para conectar Google Drive desde este computador el sistema debe abrirse en <b>localhost</b> (ya está en esa dirección). Pulse otra vez «Conectar Google Drive».</div>{% endif %}
 <div class="card" style="margin-bottom:14px"><h2 style="margin-top:0">Google Drive</h2>
 <p class="small">Para leer las carpetas de Drive por internet (necesario en la nube), el sistema se conecta con la cuenta de Google de un administrador, con permiso de <b>solo lectura</b>. Se puede quitar en cualquier momento.</p>
 <p>Estado: {% if drive_ok %}<span class="badge b-ok">conectado{% if drive_correo %} con {{ drive_correo }}{% endif %}</span>{% else %}<span class="badge b-warn">sin conectar</span>{% endif %}</p>

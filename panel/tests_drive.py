@@ -55,3 +55,8 @@ class ConexionDriveTest(TestCase):
         u = User.objects.create_user('op', password='x')
         self.client.force_login(u)
         self.assertEqual(self.client.post('/configuracion/drive/conectar/').status_code, 403)
+
+    def test_desde_127_0_0_1_lleva_a_localhost(self):
+        almacen.guardar_privado(almacen._ruta_cliente(), {'client_id': '1-a.apps.googleusercontent.com', 'client_secret': 's'})
+        r = self.client.post('/configuracion/drive/conectar/', HTTP_HOST='127.0.0.1:8000')
+        self.assertEqual(r['Location'], 'http://localhost:8000/configuracion/?drive=localhost')

@@ -50,6 +50,11 @@ def conectar(request):
     if not cli:
         messages.error(request, 'Primero ingrese el ID de cliente de Google.')
         return redirect('configuracion')
+    if request.get_host().split(':')[0] == '127.0.0.1':
+        # Google solo acepta «localhost» (la dirección registrada); 127.0.0.1 es lo mismo pero Google lo trata distinto
+        host = request.get_host()
+        puerto = host.split(':')[1] if ':' in host else request.get_port()
+        return redirect(f'http://localhost:{puerto}{reverse("configuracion")}?drive=localhost')
     request.session['drive_estado'] = estado = secrets.token_urlsafe(24)
     q = urllib.parse.urlencode({'client_id': cli['client_id'], 'redirect_uri': _volver(request), 'response_type': 'code',
                                 'scope': almacen.ALCANCE + ' openid email', 'access_type': 'offline', 'prompt': 'consent',

@@ -162,7 +162,7 @@ El IPC real se carga desde el SII (cifra oficial del INE) o el Banco Central y r
 (el 8 de cada mes sale el del mes anterior). Los meses aún no publicados siguen con el valor de prueba.
 
 ## Pruebas
-`python manage.py test` (103 pruebas: motor, flujo de borradores/aprobación, XML, luz, gas y otros cargos, vistas del panel, carga de UF e IPC,
+`python manage.py test` (104 pruebas: motor, flujo de borradores/aprobación, XML, luz, gas y otros cargos, vistas del panel, carga de UF e IPC,
 carpetas de contratos, historial, lectura con IA (con un cliente simulado), numeración, notas de cobro y facturas emitidas).
 
 ## Producción en la nube (Render)

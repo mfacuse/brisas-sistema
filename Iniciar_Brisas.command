@@ -64,7 +64,7 @@ NOMBRE="$(scutil --get LocalHostName 2>/dev/null)"
 echo
 echo "=============================================="
 echo "  SISTEMA ENCENDIDO"
-echo "  En este computador:        http://127.0.0.1:$PUERTO/"
+echo "  En este computador:        http://localhost:$PUERTO/"
 [ -n "$IP" ] && echo "  Desde otros equipos/celulares de la misma red:"
 [ -n "$IP" ] && echo "                             http://$IP:$PUERTO/"
 [ -n "$NOMBRE" ] && echo "                       o     http://$NOMBRE.local:$PUERTO/"
@@ -72,5 +72,5 @@ echo "  Mantenga esta ventana abierta; al cerrarla se apaga."
 echo "  El computador no se dormirá mientras esté encendido."
 echo "=============================================="
 echo
-(sleep 3; open "http://127.0.0.1:$PUERTO/") &
+(sleep 3; open "http://localhost:$PUERTO/") &
 caffeinate -is python -m waitress --listen=0.0.0.0:$PUERTO --threads=8 config.wsgi:application
