@@ -166,3 +166,55 @@ def leer_otros(ruta):
         mes = mes.strftime('%Y-%m') if hasattr(mes, 'strftime') else str(mes or '').strip()[:7]
         out.append((k + 1, cod, str(_cel(f, 1) or '').strip(), str(_cel(f, 2) or '').strip(), neto, mes))
     return out
+
+
+# ------------------------------------------------------------------ agua y gastos comunes (planilla mensual, formato flexible)
+COLS_MONTO = ['a facturar neto', 'a facturar', 'monto neto', 'neto', 'gasto comun', 'gastos comunes', 'ggcc', 'monto', 'valor', 'total']
+COLS_LOCAL = ['n local', 'no local', 'nro local', 'local', 'contrato', 'modulo', 'unidad']
+COLS_NOMBRE = ['arrendatario', 'razon social', 'nombre', 'cliente', 'fantasia', 'locatario']
+COLS_CONSUMO = ['consumo m3', 'consumo', 'm3']
+
+
+def _buscar(enc, opciones, usadas=()):
+    for o in opciones:
+        for i, e in enumerate(enc):
+            if i not in usadas and e and (e == o or e.startswith(o + ' ') or e.endswith(' ' + o) or o in e.split(' - ')):
+                return i
+    for o in opciones:
+        for i, e in enumerate(enc):
+            if i not in usadas and e and o in e:
+                return i
+    return None
+
+
+def leer_generica(ruta, servicio: str):
+    """Planilla de agua (AGUA) o gastos comunes (GGCC): una fila por local con su monto neto. Detecta solo las columnas
+    (Local / Nombre o Arrendatario / Neto o Monto; opcionales Consumo m³ y lecturas). Devuelve (hoja, [FilaCargo])."""
+    for nombre_hoja, filas in hojas(ruta).items():
+        for k, f in enumerate(filas[:25]):
+            enc = [norm(c) for c in f]
+            i_monto = _buscar(enc, COLS_MONTO)
+            i_nombre = _buscar(enc, COLS_NOMBRE, {i_monto})
+            i_local = _buscar(enc, COLS_LOCAL, {i_monto, i_nombre})
+            if i_monto is None or (i_nombre is None and i_local is None):
+                continue
+            i_cons = _buscar(enc, COLS_CONSUMO, {i_monto, i_nombre, i_local}) if servicio == 'AGUA' else None
+            i_ant = _buscar(enc, ['lectura anterior', 'anterior'], {i_monto, i_nombre, i_local, i_cons})
+            i_act = _buscar(enc, ['lectura actual', 'actual'], {i_monto, i_nombre, i_local, i_cons, i_ant})
+            out = []
+            for j in range(k + 1, len(filas)):
+                fila = filas[j]
+                nombre = str(_cel(fila, i_nombre) or '').strip()
+                local = _cel(fila, i_local)
+                local = (str(int(local)) if isinstance(local, float) and local.is_integer() else str(local or '')).strip()
+                if not (nombre or local) or 'total' in norm(nombre) or 'total' in norm(local):
+                    continue
+                neto = _num(_cel(fila, i_monto))
+                if neto is None:
+                    continue
+                cons = _num(_cel(fila, i_cons)) if i_cons is not None else None
+                out.append(FilaCargo(servicio, local, nombre or local, '', _num(_cel(fila, i_ant)) if i_ant is not None else None,
+                                     _num(_cel(fila, i_act)) if i_act is not None else None, None, cons, 'm³' if cons is not None else '', neto, j + 1))
+            if out:
+                return nombre_hoja, out
+    raise PlanillaInvalida('No encontré una tabla con columnas de local o nombre y de monto (neto) en la planilla.')

@@ -64,7 +64,7 @@ ESQUEMA = ia._obj({'asignaciones': {'type': 'array', 'items': ia._obj({
     'motivo': {'type': 'string', 'description': 'por qué, en una frase (número de local, nombre, ocupante anterior…)'},
 })}})
 
-INSTRUCCIONES = """Asignas las filas de la planilla mensual de electricidad o gas de un centro comercial en Talca (Chile) a los contratos de arriendo.
+INSTRUCCIONES = """Asignas las filas de la planilla mensual de electricidad, gas, agua o gastos comunes de un centro comercial en Talca (Chile) a los contratos de arriendo.
 Cada fila trae el «Nº Local» (puede ser el número municipal, la designación del plano como L12, o el número de calle como 1225) y el nombre que
 usa el proveedor (a veces es el nombre de fantasía, a veces el arrendatario, a veces un ocupante anterior del local).
 Compara con los locales de cada contrato (código de plano, número municipal y designación), el nombre de fantasía y la razón social.
@@ -90,7 +90,8 @@ def asignar_con_ia(carga_id: int, cliente=None):
         contratos, confirmados = _contratos_txt(carga.sociedad)
         pendientes = [dict(fila=d['fila'], local=d['etiqueta'], nombre=d['nombre'], tarifa=d['tarifa'], consumo=d['cantidad'], neto=d['neto'])
                       for d in carga.filas if not d['contrato'] and D(d['neto']) != 0]
-        texto = (f'Servicio: {"electricidad" if carga.servicio == "ELEC" else "gas"}. Sociedad: {carga.sociedad.nombre}.\n'
+        nombres = {'ELEC': 'electricidad', 'GAS': 'gas', 'AGUA': 'agua', 'GGCC': 'gastos comunes'}
+        texto = (f'Servicio: {nombres.get(carga.servicio, carga.servicio)}. Sociedad: {carga.sociedad.nombre}.\n'
                  f'Contratos: {json.dumps(contratos, ensure_ascii=False)}\n'
                  f'Medidores ya confirmados en meses anteriores (referencia): {json.dumps(confirmados, ensure_ascii=False)}\n'
                  f'Filas por asignar: {json.dumps(pendientes, ensure_ascii=False)}')

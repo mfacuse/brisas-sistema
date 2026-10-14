@@ -79,3 +79,4 @@ Complementa «reglas-de-cobro-brisas-del-centro.md». Código y README en la car
   archivos exportados de octubre en `Respaldos/salidas_antes_de_borrar_todo_2026-10-13/`.
 
 - 2026-10-14: la fecha de la UF del mes se puede elegir a mano en Facturación (por sociedad y mes); por defecto el día 1. La fecha elegida se aplica a todos los contratos de la sociedad ese mes, incluidos los de «primer día hábil» (decisión del propietario).
+- 2026-10-14: nuevos conceptos de cobro «Gastos comunes» y «Agua». La inmobiliaria los cobra en su factura (antes los gastos comunes los facturaba Megaservicios directo). Montos variables por arrendatario desde una planilla Excel mensual; con IVA igual que el arriendo. Para el agua se supuso la misma regla que luz y gas (consumo de M en la factura de M+1); pendiente confirmar con una planilla real.

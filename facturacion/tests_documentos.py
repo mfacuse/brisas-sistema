@@ -328,3 +328,48 @@ class FechaUFTest(Base):
         self.assertFalse(FechaUFMes.objects.exists())
         servicios.generar_borradores(self.soc, 2026, 10)
         self.assertEqual(Documento.objects.get(contrato=self.fa, periodo=date(2026, 10, 1)).fecha_uf, date(2026, 10, 1))
+
+
+class AguaYGastosComunesTest(Base):
+    def _xlsx(self, filas):
+        import openpyxl
+        wb = openpyxl.Workbook()
+        for f in filas:
+            wb.active.append(f)
+        d = tempfile.mkdtemp()
+        ruta = Path(d) / 'p.xlsx'
+        wb.save(ruta)
+        return str(ruta)
+
+    def test_lectura_flexible_de_planillas(self):
+        from . import lectores
+        ggcc = self._xlsx([['Gastos comunes octubre 2026'], [], ['Local', 'Arrendatario', 'm²', 'Gasto común neto'],
+                           ['L01', 'Ale SpA', 24, 120500], ['L02', 'Casa Ltda', 30, 150000.4], ['', 'TOTAL', '', 270500]])
+        hoja, filas = lectores.leer_generica(ggcc, 'GGCC')
+        self.assertEqual([(f.etiqueta_local, f.nombre, f.neto) for f in filas], [('L01', 'Ale SpA', D('120500')), ('L02', 'Casa Ltda', D('150000.4'))])
+        agua = self._xlsx([['N° Local', 'Nombre', 'Lectura anterior', 'Lectura actual', 'Consumo m3', 'Neto'], [1, 'Ale', 100, 112, 12, 15600]])
+        _, filas = lectores.leer_generica(agua, 'AGUA')
+        f = filas[0]
+        self.assertEqual((f.etiqueta_local, f.cantidad, f.unidad, f.lectura_actual, f.neto), ('1', D('12'), 'm³', D('112'), D('15600')))
+        with self.assertRaises(lectores.PlanillaInvalida):
+            lectores.leer_generica(self._xlsx([['a', 'b'], [1, 2]]), 'AGUA')
+
+    def test_gastos_comunes_en_la_factura_con_iva(self):
+        from . import asignacion, lectores
+        from .models import CargaPlanilla, LineaDocumento
+        ruta = self._xlsx([['Local', 'Arrendatario', 'Neto'], ['L01', 'Ale SpA', 100000], ['L02', 'Casa Ltda', 50000]])
+        _, filas = lectores.leer_generica(ruta, 'GGCC')
+        carga = asignacion.preparar(self.soc, 'GGCC', filas, date(2026, 9, 1), date(2026, 10, 1), 'ggcc.xlsx', 'op')
+        asignacion.confirmar(carga, {2: 'P-01', 3: 'P-02'}, 'op')
+        servicios.generar_borradores(self.soc, 2026, 10)
+        fa = Documento.objects.get(contrato=self.fa)
+        linea = fa.lineas.get(origen='GGCC')
+        self.assertEqual((linea.concepto, int(linea.neto), linea.exento), ('GASTOS COMUNES', 100000, False))
+        self.assertIn('Gastos comunes de Septiembre 2026', linea.detalle)
+        renta = sum(int(l.neto) for l in fa.lineas.exclude(origen='GGCC'))
+        self.assertEqual(int(fa.iva), servicios.motor.peso(D(renta + 100000) * D('0.19')))   # IVA también sobre los gastos comunes
+        nc = Documento.objects.get(contrato=self.nc)
+        self.assertTrue(nc.lineas.get(origen='GGCC').exento)   # nota de cobro: sin IVA
+        # el mes siguiente las filas confirmadas se asignan solas
+        carga2 = asignacion.preparar(self.soc, 'GGCC', filas, date(2026, 10, 1), date(2026, 11, 1), 'ggcc2.xlsx', 'op')
+        self.assertEqual([d['fuente'] for d in carga2.filas], ['medidor confirmado', 'medidor confirmado'])

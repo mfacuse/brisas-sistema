@@ -23,6 +23,10 @@ from maestro.models import ArchivoContrato, Contrato, PropuestaIA, Sociedad
 from .permisos import puede_forzar, puede_operar, requiere_operacion, rol
 
 
+SERVICIO_DE_TIPO = {'electricidad': 'ELEC', 'gas': 'GAS', 'agua': 'AGUA', 'gastos_comunes': 'GGCC'}
+NOMBRE_SERVICIO = {'ELEC': 'Electricidad', 'GAS': 'Gas', 'AGUA': 'Agua', 'GGCC': 'Gastos comunes'}
+
+
 # ------------------------------------------------------------------ utilidades
 def _periodo(request, clave='periodo'):
     txt = request.GET.get(clave) or request.POST.get(clave) or ''
@@ -119,10 +123,10 @@ def facturacion(request):
         por = {}
         for l in d.lineas.all():
             por[l.origen] = por.get(l.origen, 0) + int(l.neto)
-            if l.origen in ('ELEC', 'GAS', 'OTRO'):
+            if l.origen in ('ELEC', 'GAS', 'AGUA', 'GGCC', 'OTRO'):
                 lineas_cargo += 1
         filas.append(dict(d=d, renta=por.get('RENTA', 0) + por.get('RDIF', 0) + por.get('DESC', 0), luz=por.get('ELEC', 0),
-                          gas=por.get('GAS', 0), otro=por.get('OTRO', 0), graves=motor_graves(d)))
+                          gas=por.get('GAS', 0), agua=por.get('AGUA', 0), ggcc=por.get('GGCC', 0), otro=por.get('OTRO', 0), graves=motor_graves(d)))
     con_doc = {d.contrato_id for d in docs}
     sin_doc = [x for x in servicios.contratos_del_mes(soc, p.year, p.month) if x.id not in con_doc]
     tot = {k: sum(int(getattr(f['d'], k)) for f in filas) for k in ('neto', 'iva', 'total')}
@@ -308,6 +312,9 @@ def cargas_vista(request):
     c.update(meses_cmp=meses_cmp, filas_cmp=[f for f in filas_cmp if f.luz in ('amarillo', 'rojo')] if solo_alertas else filas_cmp,
              solo_alertas=solo_alertas, n_rojo=sum(f.luz == 'rojo' for f in filas_cmp), n_amarillo=sum(f.luz == 'amarillo' for f in filas_cmp),
              n_verde=sum(f.luz == 'verde' for f in filas_cmp))
+    c['planillas_genericas'] = [
+        ('agua', 'Agua', 'Planilla mensual de agua (.xlsx o .xls): una fila por local con su monto neto (y, si la trae, el consumo en m³). Asignación por medidor + IA, con revisión.'),
+        ('gastos_comunes', 'Gastos comunes', 'Planilla mensual de gastos comunes (.xlsx o .xls): una fila por local o arrendatario con su monto neto. Asignación automática + IA, con revisión.')]
     c.update(planillas=CargaPlanilla.objects.filter(sociedad=soc, estado__in=('P', 'L')),
              contratos_soc=Contrato.objects.filter(sociedad=soc, activo=True).order_by('codigo'))
     r = request.session.pop('resultado_carga', None)
@@ -338,11 +345,15 @@ def cargar_archivo(request):
                 mes_txt, filas = lectores.leer_electricidad(ruta)
                 if mes_txt and lectores.norm(mes_txt) != lectores.MESES[consumo.month - 1]:
                     raise lectores.PlanillaInvalida(f'La planilla es de «{mes_txt}», pero indicó consumo de {motor.MESES[consumo.month]}.')
-            else:
+            elif tipo == 'gas':
                 _, filas = lectores.leer_gas(ruta, consumo.year, consumo.month)
+            elif tipo in ('agua', 'gastos_comunes'):
+                _, filas = lectores.leer_generica(ruta, SERVICIO_DE_TIPO[tipo])
+            else:
+                raise lectores.PlanillaInvalida('tipo de planilla desconocido')
             if not filas:
                 raise lectores.PlanillaInvalida('no se encontraron filas con cobro en la planilla')
-            carga = asignacion.preparar(soc, 'ELEC' if tipo == 'electricidad' else 'GAS', filas, consumo, cobro, f.name, request.user.get_username())
+            carga = asignacion.preparar(soc, SERVICIO_DE_TIPO[tipo], filas, consumo, cobro, f.name, request.user.get_username())
             return redirect('planilla', pk=carga.pk)
         cobro_p = cobro if tipo != 'otros' else None
         pendientes = Documento.objects.filter(contrato__sociedad=soc, periodo=cobro_p, estado__in=('A', 'X')).count() if cobro_p else 0
@@ -495,7 +506,7 @@ def planilla(request, pk):
             messages.error(request, str(e))
             return redirect('planilla', pk=carga.pk)
         pendientes = Documento.objects.filter(contrato__sociedad=carga.sociedad, periodo=carga.periodo_cobro, estado__in=('A', 'X')).count()
-        messages.success(request, f'{"Electricidad" if carga.servicio == "ELEC" else "Gas"}: {carga.resultado}.')
+        messages.success(request, f'{NOMBRE_SERVICIO.get(carga.servicio, carga.servicio)}: {carga.resultado}.')
         if pendientes:
             messages.warning(request, f'{pendientes} documentos de ese mes ya estaban aprobados y no incluyen estos cargos: en Facturación use '
                                       '«Volver aprobados a borrador» y luego «Regenerar borradores».')

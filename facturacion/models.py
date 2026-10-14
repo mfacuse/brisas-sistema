@@ -22,6 +22,8 @@ class MedidorServicio(models.Model):
     class Servicio(models.TextChoices):
         ELECTRICIDAD = 'ELEC', 'Energía eléctrica'
         GAS = 'GAS', 'Gas'
+        AGUA = 'AGUA', 'Agua'
+        GASTOS_COMUNES = 'GGCC', 'Gastos comunes'
 
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name='medidores')
     servicio = models.CharField(max_length=4, choices=Servicio.choices)
@@ -46,6 +48,8 @@ class ConsumoServicio(models.Model):
     class Servicio(models.TextChoices):
         ELECTRICIDAD = 'ELEC', 'Energía eléctrica'
         GAS = 'GAS', 'Gas'
+        AGUA = 'AGUA', 'Agua'
+        GASTOS_COMUNES = 'GGCC', 'Gastos comunes'
         OTRO = 'OTRO', 'Otro cargo'
 
     contrato = models.ForeignKey(Contrato, on_delete=models.CASCADE, related_name='consumos')
@@ -117,6 +121,8 @@ class LineaDocumento(models.Model):
         DESCUENTO = 'DESC', 'Descuento'
         ELECTRICIDAD = 'ELEC', 'Energía eléctrica'
         GAS = 'GAS', 'Gas'
+        AGUA = 'AGUA', 'Agua'
+        GASTOS_COMUNES = 'GGCC', 'Gastos comunes'
         OTRO = 'OTRO', 'Otro'
 
     documento = models.ForeignKey(Documento, on_delete=models.CASCADE, related_name='lineas')

@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (109 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (111 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -86,10 +86,14 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   (101 subterráneo y 201 elevaciones se omiten: sin locales). Plaza Motor: Sistema Facturacion/15 Oriente/Planos; su plano no trae contornos cerrados, se trazaron en `locales_plano.json` (misma carpeta). Vínculo contrato↔local en «Editar condiciones».
 - Cargas: semáforo por local (luz/gas por consumo, otros por monto; mes vs anterior): verde ≤ 10 %, amarillo ≤ 20 %, rojo > 20 % (`comparacion.py`).
 - Renta variable: el mes M cobra el mínimo de M más la diferencia entre (% × ventas netas de M-1) y el mínimo de M-1.
-- Luz y gas: el consumo del mes M se cobra en la factura de M+1, a costo, con IVA en facturas afectas; exentas y notas de cobro, sin IVA.
+- Luz, gas y agua: el consumo del mes M se cobra en la factura de M+1, a costo, con IVA en facturas afectas; exentas y notas de cobro, sin IVA.
 - Flujo Borrador → Aprobado → Exportado. Generar borradores solo recalcula los que están en Borrador: si se carga luz o gas después de aprobar,
   hay que usar «Volver aprobados a borrador» y regenerar. Una advertencia bloquea la aprobación (solo el Administrador la fuerza).
-- Un documento por contrato y mes. Los gastos comunes los factura Megaservicios Talca SpA; el sistema solo mostrará lo que ellos informen.
+- Un documento por contrato y mes.
+- Gastos comunes y agua (decisión de Matías, 2026-10-14): los cobra la inmobiliaria en su factura (antes los facturaba Megaservicios).
+  Llegan en una planilla mensual, distinta por arrendatario; `lectores.leer_generica` detecta las columnas (local/nombre/neto; agua: m³ y lecturas).
+  Se asignan como luz y gas (medidor confirmado + IA, con revisión). Con IVA igual que el arriendo; exentas y notas de cobro, sin IVA.
+  Mes de la planilla → factura del mes siguiente (elegible al cargar). Faltan sus códigos de servicio BSOFT (AGUA, GGCC).
 - Nota de cobro (tipo NC, definido en cada contrato y editable): sin IVA, no va al XML de BSOFT, se emite en PDF. Número interno correlativo por sociedad
   al aprobar (BT-F-0001 / BT-NC-0001), nunca se reutiliza.
 - La exportación XML a BSOFT quedó en pausa por instrucción de Matías (2026-10-09) hasta validar la facturación al 100 %; el código existe con códigos de servicio provisorios.

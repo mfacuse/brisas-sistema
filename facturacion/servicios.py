@@ -41,13 +41,16 @@ def _num(x, dec=2):
     return t.rstrip('0').rstrip(',') if dec and ',' in t else t
 
 
+CONCEPTOS = {'ELEC': 'ENERGIA ELECTRICA', 'GAS': 'GAS', 'AGUA': 'AGUA', 'GGCC': 'GASTOS COMUNES'}
+
+
 def linea_consumo(cs: ConsumoServicio) -> motor.LineaCalc:
     """Línea de factura para un cargo de luz, gas u otro (siempre a costo, en pesos netos)."""
     mes = f'{motor.MESES[cs.periodo_consumo.month]} {cs.periodo_consumo.year}'
     if cs.servicio == 'OTRO':
         return motor.LineaCalc('OTRO', (cs.concepto or 'OTRO CARGO').upper(), cs.detalle or '', 'CLP', D(cs.neto), None, int(cs.neto))
-    concepto = 'ENERGIA ELECTRICA' if cs.servicio == 'ELEC' else 'GAS'
-    partes = [f'Consumo de {mes}']
+    concepto = CONCEPTOS[cs.servicio]
+    partes = [f'{"Gastos comunes" if cs.servicio == "GGCC" else "Consumo"} de {mes}']
     if cs.medidor:
         partes.append(f'medidor {cs.medidor}')
     if cs.lectura_anterior is not None and cs.lectura_actual is not None:
@@ -59,7 +62,8 @@ def linea_consumo(cs: ConsumoServicio) -> motor.LineaCalc:
         partes.append(f'{_num(cs.cantidad)} {cs.unidad_consumo}'.strip())
     if cs.detalle:
         partes.append(cs.detalle)
-    partes.append('a costo')
+    if cs.servicio != 'GGCC':
+        partes.append('a costo')
     return motor.LineaCalc(cs.servicio, concepto, ' · '.join(partes), 'CLP', D(cs.neto), None, int(cs.neto))
 
 
@@ -127,7 +131,7 @@ def generar_borradores(sociedad, año: int, mes: int, codigos=None, feriados=())
             advertencias=r.advertencias + [f'Nota: {n}' for n in r.notas if 'diferencia de renta variable' in n.lower()],
             # un número ya asignado (aprobado y vuelto a borrador) se conserva para no dejar saltos en la numeración
             numero_interno=numero_previo[0] if serie(numero_previo[1]) == serie(c.tipo_documento) else '')
-        orig = {k: k for k in ('RENTA', 'RDIF', 'DESC', 'ELEC', 'GAS', 'OTRO')}
+        orig = {k: k for k in ('RENTA', 'RDIF', 'DESC', 'ELEC', 'GAS', 'AGUA', 'GGCC', 'OTRO')}
         LineaDocumento.objects.bulk_create([
             LineaDocumento(documento=doc, orden=i + 1, origen=orig[l.origen], concepto=l.concepto, detalle=l.detalle, unidad=l.unidad,
                            cantidad_unidad=l.monto, valor_uf=l.valor_uf, neto=l.neto, exento=(c.tipo_documento != 'FA'))

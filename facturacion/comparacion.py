@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from .models import ConsumoServicio
 
-SERVICIOS = [('ELEC', 'Electricidad'), ('GAS', 'Gas'), ('OTRO', 'Otros')]
+SERVICIOS = [('ELEC', 'Electricidad'), ('GAS', 'Gas'), ('AGUA', 'Agua'), ('GGCC', 'Gastos comunes'), ('OTRO', 'Otros')]
 
 
 def mes_menos(p: date, n: int) -> date:
@@ -58,7 +58,7 @@ def comparar(sociedad, periodo: date):
         f = Fila(d['contrato'], serv, nombres[serv], [d['meses'][p] for p in meses])
         ant, act = f.meses[2], f.meses[3]
         if act.hay and ant.hay:
-            if serv != 'OTRO' and act.cantidad is not None and ant.cantidad:
+            if serv not in ('OTRO', 'GGCC') and act.cantidad is not None and ant.cantidad:
                 f.variacion, f.base = (act.cantidad - ant.cantidad) / ant.cantidad * 100, 'consumo'
             elif ant.neto:
                 f.variacion, f.base = Decimal(act.neto - ant.neto) / Decimal(abs(ant.neto)) * 100, 'monto'
