@@ -30,6 +30,19 @@ class Command(BaseCommand):
     def add_arguments(self, p):
         p.add_argument('--salida', required=True, help='archivo .json a crear')
 
+    def _textos_largos(self):
+        """SQLite (Mac) acepta textos más largos que el máximo del campo; PostgreSQL (nube) no. Se revisan antes de exportar."""
+        from django.apps import apps
+        from django.db import models
+        out = []
+        for m in apps.get_models():
+            campos = [f for f in m._meta.concrete_fields if isinstance(f, models.CharField) and f.max_length]
+            for f in campos:
+                for pk, v in m.objects.values_list('pk', f.attname):
+                    if v and len(v) > f.max_length:
+                        out.append(f'{m._meta.label} n.º {pk}: {f.name} tiene {len(v)} caracteres (máximo {f.max_length})')
+        return out
+
     def handle(self, *a, **o):
         nombre = Path(str(settings.DATABASES['default']['NAME'])).resolve()
         if nombre == (Path(settings.BASE_DIR) / 'db.sqlite3').resolve():
@@ -64,6 +77,9 @@ class Command(BaseCommand):
                 f.ruta = a_drive(f.ruta, f.nombre)
                 f.save(update_fields=['ruta'])
             PlanoPiso.objects.all().delete()   # en la nube se vuelven a leer desde Drive
+        largos = self._textos_largos()
+        if largos:
+            raise CommandError('Textos más largos que su campo (la base de la nube los rechazaría):\n' + '\n'.join(largos[:20]))
         if faltan:
             raise CommandError('Sin identificador de Drive (¿están fuera de Google Drive?):\n' + '\n'.join(faltan[:20]))
         with open(o['salida'], 'w', encoding='utf-8') as fh:

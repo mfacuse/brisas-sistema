@@ -410,7 +410,7 @@ class PropuestaIA(models.Model):
     pedida_por = models.CharField(max_length=80, blank=True)
     resuelta_por = models.CharField(max_length=80, blank=True)
     resuelta_en = models.DateTimeField(null=True, blank=True)
-    nota = models.CharField(max_length=300, blank=True)
+    nota = models.TextField(blank=True)
 
     class Meta:
         ordering = ['-creada']
