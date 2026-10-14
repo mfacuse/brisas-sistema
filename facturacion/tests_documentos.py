@@ -403,3 +403,83 @@ class AguaYGastosComunesTest(Base):
         self.fa.refresh_from_db()
         self.assertEqual((self.fa.cobra_gastos_comunes, self.fa.cobra_agua), ('INM', 'MEGA'))
         self.assertTrue(RegistroCambio.objects.filter(contrato=self.fa, usuario='op').exists())
+
+
+class PlanillasPlazaMotorTest(Base):
+    """Formatos de Plaza Motor (15 Oriente): agua con «Plaza Motor | Arrendatario | l. anterior m3 | … | $» y luz con
+    columnas sin título de nombre, «Nro cliente», «Consumo Kwh» y «$»; hoja «AGO26»."""
+    def _hoja(self, nombre, filas):
+        import openpyxl
+        wb = openpyxl.Workbook()
+        wb.active.title = nombre
+        for f in filas:
+            wb.active.append(f)
+        ruta = Path(tempfile.mkdtemp()) / 'p.xlsx'
+        wb.save(ruta)
+        return str(ruta)
+
+    def test_agua_plaza_motor(self):
+        from . import lectores
+        ruta = self._hoja('AGO26', [[], [None, None, 'Plaza Motor', 'Arrendatario', 'l. anterior m3', 'l. actual m3', 'consumo m3', '$'],
+                                    [None, None, 1, 'Autoplanet', 1163, 1169, 6, 10359.214285714286],
+                                    [None, None, 9, 'Totaland', 133, 135, 2, 3453.0714285714284]])
+        hoja, filas = lectores.leer_generica(ruta, 'AGUA')
+        self.assertEqual(lectores.mes_de_hoja(hoja), (2026, 8))
+        self.assertEqual([(f.etiqueta_local, f.nombre, f.lectura_anterior, f.cantidad, f.unidad) for f in filas],
+                         [('1', 'Autoplanet', D('1163'), D('6'), 'm³'), ('9', 'Totaland', D('133'), D('2'), 'm³')])   # «Totaland» no es una fila de total
+
+    def test_luz_plaza_motor_sin_titulo_de_nombre(self):
+        from . import lectores
+        ruta = self._hoja('AGO26', [[], [], [None, None, 'Consumos Electricidad', None, 'Nro cliente', 'Consumo Kwh', '$'],
+                                    [None, None, 1, 'Autoplanet', None, None, None],
+                                    [None, None, 2, 'Würth', 6349302, 541, 118061],
+                                    [None, None, 9, ' +56 Food', 6248866, None, None],
+                                    [None, None, 10, ' +56 Market', 6252582, 1267, 412913]])
+        _, filas = lectores.leer_generica(ruta, 'ELEC')
+        self.assertEqual([(f.etiqueta_local, f.nombre, f.tarifa, f.cantidad, f.unidad, f.neto) for f in filas],
+                         [('2', 'Würth', 'cliente 6349302', D('541'), 'kWh', D('118061')),
+                          ('10', '+56 Market', 'cliente 6252582', D('1267'), 'kWh', D('412913'))])   # sin monto: no se carga
+
+    def test_mes_de_hoja(self):
+        from . import lectores
+        self.assertEqual(lectores.mes_de_hoja('SEP26'), (2026, 9))
+        self.assertEqual(lectores.mes_de_hoja('Octubre 2026'), (2026, 10))
+        self.assertIsNone(lectores.mes_de_hoja('Hoja1'))
+
+    def test_subir_luz_plaza_motor_y_avisar_mes_distinto(self):
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op2', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        ruta = self._hoja('AGO26', [[None, 'Consumos Electricidad', None, 'Nro cliente', 'Consumo Kwh', '$'],
+                                    [None, 1, 'Ale', 111, 10, 5000], [None, 2, 'Casa', 222, 20, 9000]])
+        def subir(consumo):
+            with open(ruta, 'rb') as fh:
+                return self.client.post(f'/cargas/archivo/?sociedad={self.soc.id}&periodo=2026-09',
+                                        {'tipo': 'electricidad', 'consumo': consumo, 'archivo': fh}, follow=True)
+        self.assertContains(subir('2026-09'), 'es de Agosto 2026')   # la hoja dice agosto y se indicó septiembre
+        r = subir('2026-08')
+        self.assertEqual(r.redirect_chain[-1][0].split('/')[1], 'cargas')
+        from .models import CargaPlanilla
+        carga = CargaPlanilla.objects.get()
+        self.assertEqual((carga.servicio, len(carga.filas)), ('ELEC', 2))
+
+
+class DetalleXMLTest(Base):
+    def test_cada_linea_lleva_el_texto_del_calculo(self):
+        docs = self.generar_y_aprobar()
+        fa = docs['P-01']
+        xml = bsoft.xml_documento(fa, {o: '1002' for o in ('RENTA', 'RDIF', 'DESC', 'ELEC', 'GAS', 'OTRO', 'AGUA', 'GGCC')})
+        linea = fa.lineas.order_by('orden').first()
+        self.assertIn(f'<DscItem>{bsoft.detalle_linea(linea)}</DscItem>', xml)
+        self.assertTrue(bsoft.detalle_linea(linea).startswith(linea.concepto))
+        self.assertIn('41.065,38', bsoft.detalle_linea(linea))   # el cálculo con la UF usada
+        self.assertTrue(xml.isascii())
+
+    def test_texto_sin_simbolos_y_con_largo_maximo(self):
+        from types import SimpleNamespace
+        l = SimpleNamespace(concepto='ARRIENDO', detalle='27 UF × UF 41.065,38 → año ' + 'x' * 2000)
+        t = bsoft.detalle_linea(l)
+        self.assertTrue(t.isascii())
+        self.assertIn('27 UF x UF 41.065,38 -> ano', t)
+        self.assertEqual(len(t), bsoft.MAX_DETALLE)

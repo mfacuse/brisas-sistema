@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (113 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (119 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -81,6 +81,9 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Luz y gas: la planilla se lee con `lectores.py` (montos exactos, la IA nunca calcula dinero); cada fila se asigna por medidor confirmado y,
   si no hay, la IA propone el contrato (`asignacion.py`); se confirma en la pantalla «Revisar planilla» y queda como medidor confirmado.
   Las pruebas automáticas nunca usan la clave real de la IA (`settings.PRUEBAS`). Otros cargos: por archivo o a mano.
+- Planillas: luz y gas aceptan el formato de Boulevard y, si no calza, el formato simple (`leer_generica`), que también usan agua y gastos
+  comunes: detecta solo las columnas (local, nombre aunque no tenga título, «Nro cliente», consumo kWh/m³, lecturas y monto «$»/«Neto»).
+  Si la hoja se llama como un mes («AGO26») y no coincide con el mes de consumo indicado, la carga se rechaza.
 - Plano (menú «Plano»): `maestro/planos.py` lee los .dxf de la carpeta de planos de cada propiedad (al encender, solo si cambian): rótulo «LOCAL XX» +
   figura cerrada de la capa A-AUXILIAR. Verde ocupado, amarillo < 4 meses de vigencia, rojo vacío; clic → contrato. Boulevard: Sistema Facturacion/Boulevard/Planos
   (101 subterráneo y 201 elevaciones se omiten: sin locales). Plaza Motor: Sistema Facturacion/15 Oriente/Planos; su plano no trae contornos cerrados, se trazaron en `locales_plano.json` (misma carpeta). Vínculo contrato↔local en «Editar condiciones».
@@ -98,6 +101,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   Mes de la planilla → factura del mes siguiente (elegible al cargar). Faltan sus códigos de servicio BSOFT (AGUA, GGCC).
 - Nota de cobro (tipo NC, definido en cada contrato y editable): sin IVA, no va al XML de BSOFT, se emite en PDF. Número interno correlativo por sociedad
   al aprobar (BT-F-0001 / BT-NC-0001), nunca se reutiliza.
+- XML de BSOFT: cada `<Detalle>` lleva `<DscItem>` con el texto del cálculo (concepto + detalle, ASCII, máx. 1000; nombre en `bsoft.TAG_DETALLE`).
 - La exportación XML a BSOFT quedó en pausa por instrucción de Matías (2026-10-09) hasta validar la facturación al 100 %; el código existe con códigos de servicio provisorios.
 
 ## Pendientes abiertos (ver `docs/decisiones-fase1.md`)

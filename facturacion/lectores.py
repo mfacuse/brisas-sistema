@@ -168,53 +168,111 @@ def leer_otros(ruta):
     return out
 
 
-# ------------------------------------------------------------------ agua y gastos comunes (planilla mensual, formato flexible)
+# ------------------------------------------------------------------ planillas de formato simple (agua, gastos comunes y luz/gas de Plaza Motor)
 COLS_MONTO = ['a facturar neto', 'a facturar', 'monto neto', 'neto', 'gasto comun', 'gastos comunes', 'ggcc', 'monto', 'valor', 'total']
 COLS_LOCAL = ['n local', 'no local', 'nro local', 'local', 'contrato', 'modulo', 'unidad']
 COLS_NOMBRE = ['arrendatario', 'razon social', 'nombre', 'cliente', 'fantasia', 'locatario']
-COLS_CONSUMO = ['consumo m3', 'consumo', 'm3']
+COLS_CONSUMO = {'AGUA': (['consumo m3', 'consumo', 'm3'], 'm³'), 'ELEC': (['consumo kwh', 'kwh', 'consumo'], 'kWh'),
+                'GAS': (['consumo m3', 'consumo', 'litros', 'm3'], 'm³')}
+MES_ABREV = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'set': 9, 'oct': 10, 'nov': 11, 'dic': 12}
 
 
 def _buscar(enc, opciones, usadas=()):
     for o in opciones:
         for i, e in enumerate(enc):
-            if i not in usadas and e and (e == o or e.startswith(o + ' ') or e.endswith(' ' + o) or o in e.split(' - ')):
+            if i not in usadas and e and (e == o or e.startswith(o + ' ') or e.endswith(' ' + o)):
                 return i
     for o in opciones:
         for i, e in enumerate(enc):
-            if i not in usadas and e and o in e:
+            if i not in usadas and e and o in e and not e.startswith('nro cliente'):
                 return i
     return None
 
 
+def _es_texto(v):
+    return isinstance(v, str) and v.strip() and _num(v) is None
+
+
+def _es_entero(v):
+    n = _num(v) if v not in (None, '') else None
+    return n is not None and n == n.to_integral_value() and 0 <= n < 10000
+
+
+def _es_total(t: str) -> bool:
+    """«Total», «TOTAL GENERAL», «Sub total»… (pero no «Totaland», que es un arrendatario)."""
+    palabras = norm(t).split()
+    return 'total' in palabras or 'subtotal' in palabras
+
+
+def mes_de_hoja(nombre: str):
+    """«AGO26» o «Agosto 2026» → (2026, 8); None si el nombre de la hoja no indica un mes."""
+    t = norm(nombre).replace(' ', '')
+    for abrev, m in MES_ABREV.items():
+        if t.startswith(abrev):
+            dig = ''.join(ch for ch in t if ch.isdigit())
+            if len(dig) in (2, 4):
+                return (2000 + int(dig) if len(dig) == 2 else int(dig)), m
+    return None
+
+
 def leer_generica(ruta, servicio: str):
-    """Planilla de agua (AGUA) o gastos comunes (GGCC): una fila por local con su monto neto. Detecta solo las columnas
-    (Local / Nombre o Arrendatario / Neto o Monto; opcionales Consumo m³ y lecturas). Devuelve (hoja, [FilaCargo])."""
+    """Planilla simple con una fila por local y su monto: agua (AGUA), gastos comunes (GGCC) y luz/gas en formato
+    simple (Plaza Motor). Detecta solas las columnas: monto («Neto», «Monto», «$»…), nombre («Arrendatario», «Nombre»…;
+    si no tiene título, la columna de texto) y local («Local», o la columna de números junto al nombre); opcionales
+    consumo y lecturas. Devuelve (hoja, [FilaCargo])."""
+    claves_consumo, unidad = COLS_CONSUMO.get(servicio, ([], ''))
     for nombre_hoja, filas in hojas(ruta).items():
         for k, f in enumerate(filas[:25]):
+            crudo = [str(c).strip() if c is not None else '' for c in f]
             enc = [norm(c) for c in f]
             i_monto = _buscar(enc, COLS_MONTO)
-            i_nombre = _buscar(enc, COLS_NOMBRE, {i_monto})
-            i_local = _buscar(enc, COLS_LOCAL, {i_monto, i_nombre})
-            if i_monto is None or (i_nombre is None and i_local is None):
+            if i_monto is None:
+                i_monto = next((i for i, c in enumerate(crudo) if c in ('$', '$ neto', 'neto $', '$ a facturar')), None)
+            if i_monto is None:
                 continue
-            i_cons = _buscar(enc, COLS_CONSUMO, {i_monto, i_nombre, i_local}) if servicio == 'AGUA' else None
-            i_ant = _buscar(enc, ['lectura anterior', 'anterior'], {i_monto, i_nombre, i_local, i_cons})
-            i_act = _buscar(enc, ['lectura actual', 'actual'], {i_monto, i_nombre, i_local, i_cons, i_ant})
+            datos = [r for r in filas[k + 1:k + 40] if any(c not in (None, '') for c in r)]
+            usadas = {i_monto}
+            i_cliente = _buscar(enc, ['nro cliente', 'n cliente', 'numero cliente', 'n de cliente'], usadas)
+            usadas.add(i_cliente)
+            i_nombre = _buscar(enc, COLS_NOMBRE, usadas)
+            if i_nombre is not None and sum(_es_texto(_cel(r, i_nombre)) for r in datos) < 2:
+                i_nombre = None   # el título calzó, pero la columna no trae nombres
+            if i_nombre is None:   # columna de nombres sin título: la que tiene más textos
+                cand = [(sum(_es_texto(_cel(r, i)) for r in datos), i) for i in range(len(f)) if i not in usadas]
+                mejor = max(cand, default=(0, None))
+                i_nombre = mejor[1] if mejor[0] >= 2 else None
+            usadas.add(i_nombre)
+            i_local = _buscar(enc, COLS_LOCAL, usadas)
+            if i_local is None and i_nombre is not None:   # números de local sin título reconocible: la columna de enteros junto al nombre
+                for i in (i_nombre - 1, i_nombre + 1):
+                    if 0 <= i < len(f) and i not in usadas and sum(_es_entero(_cel(r, i)) for r in datos) >= 2:
+                        i_local = i
+                        break
+            if i_nombre is None and i_local is None:
+                continue
+            usadas.add(i_local)
+            i_cons = _buscar(enc, claves_consumo, usadas) if claves_consumo else None
+            usadas.add(i_cons)
+            i_ant = _buscar(enc, ['lectura anterior', 'l anterior', 'anterior'], usadas)
+            usadas.add(i_ant)
+            i_act = _buscar(enc, ['lectura actual', 'l actual', 'actual'], usadas)
             out = []
             for j in range(k + 1, len(filas)):
                 fila = filas[j]
-                nombre = str(_cel(fila, i_nombre) or '').strip()
-                local = _cel(fila, i_local)
+                nombre = str(_cel(fila, i_nombre) or '').strip() if i_nombre is not None else ''
+                local = _cel(fila, i_local) if i_local is not None else None
                 local = (str(int(local)) if isinstance(local, float) and local.is_integer() else str(local or '')).strip()
-                if not (nombre or local) or 'total' in norm(nombre) or 'total' in norm(local):
+                if not (nombre or local) or _es_total(nombre) or _es_total(local):
                     continue
                 neto = _num(_cel(fila, i_monto))
                 if neto is None:
-                    continue
+                    continue   # sin monto (p. ej. local sin consumo informado)
                 cons = _num(_cel(fila, i_cons)) if i_cons is not None else None
-                out.append(FilaCargo(servicio, local, nombre or local, '', _num(_cel(fila, i_ant)) if i_ant is not None else None,
-                                     _num(_cel(fila, i_act)) if i_act is not None else None, None, cons, 'm³' if cons is not None else '', neto, j + 1))
+                cliente = _cel(fila, i_cliente) if i_cliente is not None else None
+                cliente = f'cliente {int(cliente) if isinstance(cliente, float) and cliente.is_integer() else cliente}' if cliente not in (None, '') else ''
+                out.append(FilaCargo(servicio, local, nombre or local, cliente, _num(_cel(fila, i_ant)) if i_ant is not None else None,
+                                     _num(_cel(fila, i_act)) if i_act is not None else None, None, cons, unidad if cons is not None else '',
+                                     neto, j + 1))
             if out:
                 return nombre_hoja, out
-    raise PlanillaInvalida('No encontré una tabla con columnas de local o nombre y de monto (neto) en la planilla.')
+    raise PlanillaInvalida('No encontré una tabla con columnas de local o nombre y de monto ($, neto) en la planilla.')

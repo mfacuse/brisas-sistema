@@ -3,7 +3,9 @@
 Estructura (según el ejemplo entregado por el propietario):
     <Documento>
       <Encabezado><RUTcliente>15556978-6</RUTcliente><glosaDocto>…</glosaDocto></Encabezado>
-      <Detalle><NroLinDet>1</NroLinDet><CodServicio>1002</CodServicio><Cantidad>1</Cantidad><Valor>10430</Valor></Detalle> …
+      <Detalle><NroLinDet>1</NroLinDet><CodServicio>1002</CodServicio><Cantidad>1</Cantidad><Valor>10430</Valor>
+               <DscItem>ARRIENDO: 27 UF mes completo x UF 41.065,38 …</DscItem></Detalle> …
+(DscItem: texto con el cálculo de cada línea, agregado a pedido del propietario el 14-10-2026.)
     </Documento>
 No trae fecha, tipo de documento ni sociedad: BSOFT los define al importar (una sesión por sociedad).
 """
@@ -24,9 +26,23 @@ class FaltanCodigos(Exception):
     pass
 
 
+REEMPLAZOS = {'×': 'x', '→': '->', '–': '-', '—': '-', '·': '-', '…': '...', '²': '2', '³': '3', '°': ' ', 'º': ' '}
+TAG_DETALLE = 'DscItem'   # descripción del ítem (nombre estándar del SII, máx. 1000 caracteres); cambiar aquí si BSOFT usa otro
+MAX_DETALLE = 1000
+
+
 def _ascii(t: str) -> str:
     """Sin tildes ni ñ: el ejemplo de BSOFT es ASCII y no declara codificación."""
+    for a, b in REEMPLAZOS.items():
+        t = t.replace(a, b)
     return unicodedata.normalize('NFKD', t).encode('ascii', 'ignore').decode()
+
+
+def detalle_linea(l) -> str:
+    """Texto con el cálculo de la línea (cómo sale el monto): «ARRIENDO: 27 UF mes completo x UF 41.065,38 del 01-10-2026»."""
+    txt = _ascii(f'{l.concepto}: {l.detalle}' if l.detalle else l.concepto)
+    txt = ' '.join(txt.split())
+    return txt if len(txt) <= MAX_DETALLE else txt[:MAX_DETALLE - 3] + '...'
 
 
 def rut_bsoft(rut: str) -> str:
@@ -53,7 +69,8 @@ def xml_documento(doc: Documento, codigos: dict) -> str:
          f'\t\t\t<glosaDocto>{escape(glosa_bsoft(doc))}</glosaDocto>', '\t</Encabezado>']
     for i, l in enumerate(doc.lineas.all().order_by('orden'), start=1):
         L += ['\t<Detalle>', f'\t\t <NroLinDet>{i}</NroLinDet>', f'\t\t <CodServicio>{codigos[l.origen]}</CodServicio>',
-              '\t\t <Cantidad>1</Cantidad>', f'\t\t <Valor>{int(l.neto)}</Valor>', '\t</Detalle>']
+              '\t\t <Cantidad>1</Cantidad>', f'\t\t <Valor>{int(l.neto)}</Valor>',
+              f'\t\t <{TAG_DETALLE}>{escape(detalle_linea(l))}</{TAG_DETALLE}>', '\t</Detalle>']
     L.append('</Documento>')
     return '\r\n'.join(L) + '\r\n'
 

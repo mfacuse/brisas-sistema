@@ -341,16 +341,24 @@ def cargar_archivo(request):
             a, m = (request.POST.get('consumo') or '').split('-')
             consumo = date(int(a), int(m), 1)
             cobro = date(*map(int, (request.POST.get('cobro') or '').split('-')), 1) if request.POST.get('cobro') else cargas.mes_siguiente(consumo)
-            if tipo == 'electricidad':
-                mes_txt, filas = lectores.leer_electricidad(ruta)
-                if mes_txt and lectores.norm(mes_txt) != lectores.MESES[consumo.month - 1]:
-                    raise lectores.PlanillaInvalida(f'La planilla es de «{mes_txt}», pero indicó consumo de {motor.MESES[consumo.month]}.')
-            elif tipo == 'gas':
-                _, filas = lectores.leer_gas(ruta, consumo.year, consumo.month)
-            elif tipo in ('agua', 'gastos_comunes'):
-                _, filas = lectores.leer_generica(ruta, SERVICIO_DE_TIPO[tipo])
-            else:
+            if tipo not in SERVICIO_DE_TIPO:
                 raise lectores.PlanillaInvalida('tipo de planilla desconocido')
+            hoja = None
+            try:   # formato de Boulevard para luz y gas; si no calza, el formato simple (Plaza Motor, agua, gastos comunes)
+                if tipo == 'electricidad':
+                    mes_txt, filas = lectores.leer_electricidad(ruta)
+                    if mes_txt and lectores.norm(mes_txt) != lectores.MESES[consumo.month - 1]:
+                        raise ValueError(f'La planilla es de «{mes_txt}», pero indicó consumo de {motor.MESES[consumo.month]}.')
+                elif tipo == 'gas':
+                    _, filas = lectores.leer_gas(ruta, consumo.year, consumo.month)
+                else:
+                    raise lectores.PlanillaInvalida('formato simple')
+            except lectores.PlanillaInvalida:
+                hoja, filas = lectores.leer_generica(ruta, SERVICIO_DE_TIPO[tipo])
+            mes_hoja = lectores.mes_de_hoja(hoja) if hoja else None
+            if mes_hoja and mes_hoja != (consumo.year, consumo.month):
+                raise lectores.PlanillaInvalida(f'La hoja «{hoja}» es de {motor.MESES[mes_hoja[1]]} {mes_hoja[0]}, pero indicó '
+                                                f'{motor.MESES[consumo.month]} {consumo.year}. Revise el mes antes de cargar.')
             if not filas:
                 raise lectores.PlanillaInvalida('no se encontraron filas con cobro en la planilla')
             carga = asignacion.preparar(soc, SERVICIO_DE_TIPO[tipo], filas, consumo, cobro, f.name, request.user.get_username())

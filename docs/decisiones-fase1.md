@@ -81,3 +81,11 @@ Complementa «reglas-de-cobro-brisas-del-centro.md». Código y README en la car
 - 2026-10-14: la fecha de la UF del mes se puede elegir a mano en Facturación (por sociedad y mes); por defecto el día 1. La fecha elegida se aplica a todos los contratos de la sociedad ese mes, incluidos los de «primer día hábil» (decisión del propietario).
 - 2026-10-14: nuevos conceptos de cobro «Gastos comunes» y «Agua». La inmobiliaria los cobra en su factura (antes los gastos comunes los facturaba Megaservicios directo). Montos variables por arrendatario desde una planilla Excel mensual; con IVA igual que el arriendo. Para el agua se supuso la misma regla que luz y gas (consumo de M en la factura de M+1); pendiente confirmar con una planilla real.
 - 2026-10-14: quién cobra gastos comunes y agua se define por contrato y por separado (Megaservicios directo o la inmobiliaria en su factura). Mientras no se marque, se asume Megaservicios (para evitar cobros dobles).
+
+## 2026-10-14 · Planillas de Plaza Motor y detalle en el XML
+- Matías entregó los formatos de luz y agua de Plaza Motor (hoja «AGO26»). Se leen con el lector de formato simple; luz y gas prueban primero
+  el formato de Boulevard. El mes del nombre de la hoja debe coincidir con el mes de consumo indicado.
+- Filas sin monto (p. ej. Autoplanet en luz o «+56 Food», que comparte medidor con Totaland) no se cargan.
+- Pendiente: el formato de la planilla de gastos comunes (no venía adjunto).
+- XML de BSOFT: se agrega en cada línea `<DscItem>` con el texto del cálculo (renta, UF, prorratas, consumos). Si BSOFT usa otro nombre
+  de campo, se cambia en `bsoft.TAG_DETALLE`.
