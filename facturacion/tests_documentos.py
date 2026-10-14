@@ -504,3 +504,11 @@ class GastosComunesAnualTest(Base):
                          [('1', 'Autoplanet', D('1379807.79')), ('9', 'Totaland', D('137775.1'))])
         _, filas = lectores.leer_generica(ruta, 'GGCC', 9)
         self.assertEqual([f.nombre for f in filas], ['Autoplanet'])   # Totaland sin monto en septiembre
+
+
+class LargoCamposTest(TestCase):
+    def test_numero_de_cliente_cabe_en_tarifa(self):
+        """PostgreSQL (nube) rechaza textos más largos que el campo; «cliente 6349302» debe caber (error 500 del 2026-10-14)."""
+        from .models import ConsumoServicio, MedidorServicio
+        for m in (ConsumoServicio, MedidorServicio):
+            self.assertGreaterEqual(m._meta.get_field('tarifa').max_length, len('cliente 12345678901'))

@@ -70,7 +70,7 @@ def cargar_filas(filas, periodo_consumo: date, periodo_cobro: date, origen: str,
         ConsumoServicio.objects.create(
             contrato=m.contrato, servicio=f.servicio, medidor=(f.etiqueta_local or f.nombre)[:60], medidor_ref=m,
             periodo_consumo=periodo_consumo, periodo_cobro=periodo_cobro, lectura_anterior=f.lectura_anterior,
-            lectura_actual=f.lectura_actual, factor=f.factor, cantidad=f.cantidad, unidad_consumo=f.unidad, tarifa=f.tarifa,
+            lectura_actual=f.lectura_actual, factor=f.factor, cantidad=f.cantidad, unidad_consumo=(f.unidad or '')[:6], tarifa=(f.tarifa or '')[:40],
             neto=neto, origen_archivo=f'{origen} fila {f.fila}'[:120])
         res.cargados += 1
         res.total += neto

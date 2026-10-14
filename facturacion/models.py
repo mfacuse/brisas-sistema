@@ -29,7 +29,7 @@ class MedidorServicio(models.Model):
     servicio = models.CharField(max_length=4, choices=Servicio.choices)
     etiqueta_local = models.CharField('«Nº Local» en la planilla', max_length=60, blank=True)
     nombre_planilla = models.CharField('nombre en la planilla', max_length=80)
-    tarifa = models.CharField(max_length=10, blank=True)
+    tarifa = models.CharField(max_length=40, blank=True)
     confirmado = models.BooleanField(default=False)
     nota = models.CharField(max_length=200, blank=True)
 
@@ -64,7 +64,7 @@ class ConsumoServicio(models.Model):
     factor = models.DecimalField('constante de factor', max_digits=8, decimal_places=3, null=True, blank=True)
     cantidad = models.DecimalField('consumo (kWh o litros)', max_digits=14, decimal_places=2, null=True, blank=True)
     unidad_consumo = models.CharField(max_length=6, blank=True)
-    tarifa = models.CharField(max_length=10, blank=True)
+    tarifa = models.CharField(max_length=40, blank=True)
     detalle = models.CharField(max_length=200, blank=True)
     neto = models.DecimalField(max_digits=14, decimal_places=0)
     origen_archivo = models.CharField(max_length=120, blank=True)

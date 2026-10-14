@@ -139,7 +139,7 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
             continue
         mega = not c.cobra_inmobiliaria(carga.servicio)
         m, _ = MedidorServicio.objects.get_or_create(servicio=carga.servicio, etiqueta_local=d['etiqueta'][:60], nombre_planilla=d['nombre'][:80],
-                                                     defaults=dict(contrato=c, tarifa=d['tarifa'][:10]))
+                                                     defaults=dict(contrato=c, tarifa=d['tarifa'][:40]))
         m.contrato, m.confirmado = c, True
         m.nota = (f'Confirmado por {usuario}' + (f' (propuesta de la IA: {d["motivo"]})' if d.get('fuente') == 'IA' else ''))[:200]
         m.save()

@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (121 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (122 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
