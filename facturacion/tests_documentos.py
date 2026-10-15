@@ -559,3 +559,46 @@ class TramosSuperpuestosTest(Base):
         doc = Documento.objects.get(contrato=self.fa)
         self.assertFalse(any('a la vez' in a for a in doc.advertencias))
         self.assertIn('30', doc.lineas.get(origen='RENTA').detalle)
+
+
+class ExcelFacturacionTest(Base):
+    """Excel de facturación (Matías, 2026-10-15): glosa y detalle juntos sin tildes ni ñ, código de artículo y condición de pago."""
+    def test_columnas_nuevas_y_texto_sin_tildes(self):
+        import openpyxl
+        from . import exportar
+        from .models import ConsumoServicio
+        Contrato.objects.filter(pk=self.nc.pk).update(condicion_pago='Contado 5 días')
+        ConsumoServicio.objects.create(contrato=self.fa, servicio='OTRO', concepto='Habilitación del local', detalle='Diseño señalética',
+                                       periodo_consumo=date(2026, 10, 1), periodo_cobro=date(2026, 10, 1), neto=50000)
+        CodigoServicioBsoft.objects.filter(sociedad=self.soc).delete()   # sin tabla: usa los códigos estándar
+        self.generar_y_aprobar()
+        ruta = exportar.exportar_excel(self.soc, 2026, 10, ruta=str(Path(tempfile.mkdtemp()) / 'f.xlsx'))
+        ws = openpyxl.load_workbook(ruta)['Facturación']
+        enc = [c.value for c in ws[5]]
+        self.assertNotIn('Glosa del documento', enc)
+        self.assertNotIn('Detalle del cálculo', enc)
+        filas = [dict(zip(enc, [c.value for c in f])) for f in ws.iter_rows(min_row=6) if f[1].value]
+        por = {(f['Contrato'], f['Concepto']): f for f in filas}
+        renta = next(f for f in filas if f['Contrato'] == 'P-01' and f['Código artículo'] == '111')
+        self.assertTrue(renta['Glosa y detalle del cálculo'].startswith('ARRIENDO - Octubre 2026 - UF 41.065,38'))
+        self.assertIn('Calculo: 27,00 UF', renta['Glosa y detalle del cálculo'])
+        self.assertEqual(renta['Condición de pago'], 'CREDITO')   # por defecto
+        self.assertEqual(renta['N° interno'], 'IP-F-0001')
+        otro = next(f for f in filas if f['Contrato'] == 'P-01' and 'HABILITACION' in (f['Concepto'] or ''))
+        self.assertEqual(otro['Código artículo'], '222')
+        self.assertIn('Diseno senaletica', otro['Glosa y detalle del cálculo'])
+        nc = next(f for f in filas if f['Contrato'] == 'P-02')
+        self.assertEqual(nc['Condición de pago'], 'CONTADO 5 DIAS')
+        for f in filas:
+            self.assertTrue(all(str(v).isascii() for k, v in f.items() if k in ('Glosa y detalle del cálculo', 'Concepto', 'Condición de pago')))
+
+    def test_codigos_de_articulo(self):
+        from types import SimpleNamespace as N
+        from . import articulos
+        cod = {'RENTA': '111', 'GGCC': '777'}
+        self.assertEqual(articulos.codigo(N(origen='GGCC', concepto='GASTOS COMUNES', detalle=''), cod), '777')
+        self.assertEqual(articulos.codigo(N(origen='DESC', concepto='DESCUENTO', detalle=''), {}), '111')
+        self.assertEqual(articulos.codigo(N(origen='OTRO', concepto='Gastos administrativos', detalle=''), cod), '777')
+        self.assertEqual(articulos.codigo(N(origen='OTRO', concepto='Arriendo de equipamiento', detalle=''), cod), '888')
+        self.assertEqual(articulos.codigo(N(origen='OTRO', concepto='Reembolso', detalle=''), cod), '999')
+        self.assertEqual(articulos.codigo(N(origen='AGUA', concepto='AGUA', detalle=''), {}), '444')

@@ -291,7 +291,7 @@ def propuesta_accion(request, pk):
 class ContratoForm(forms.ModelForm):
     class Meta:
         model = Contrato
-        fields = ['nombre_fantasia', 'direccion_contrato', 'representante', 'tipo_documento', 'fecha_contrato', 'inicio_vigencia',
+        fields = ['nombre_fantasia', 'direccion_contrato', 'representante', 'tipo_documento', 'condicion_pago', 'fecha_contrato', 'inicio_vigencia',
                   'fecha_entrega', 'fecha_apertura', 'regla_inicio_cobro', 'dias_inicio_cobro', 'fecha_inicio_cobro',
                   'plazo_meses', 'fin_pactado', 'prorroga_meses', 'aviso_dias', 'fecha_termino_real', 'regla_uf', 'modo_cambio_tramo',
                   'tipo_renta', 'periodicidad', 'meses_cobro', 'reajuste_ipc', 'pct_variable', 'base_variable', 'variable_desde',

@@ -19,6 +19,7 @@ from xml.sax.saxutils import escape
 from django.conf import settings
 
 from . import motor
+from . import articulos
 from .models import CodigoServicioBsoft, Documento, LineaDocumento
 
 
@@ -68,7 +69,7 @@ def xml_documento(doc: Documento, codigos: dict) -> str:
          f'\t\t\t<RUTcliente>{escape(rut_bsoft(doc.contrato.arrendatario.rut))}</RUTcliente>',
          f'\t\t\t<glosaDocto>{escape(glosa_bsoft(doc))}</glosaDocto>', '\t</Encabezado>']
     for i, l in enumerate(doc.lineas.all().order_by('orden'), start=1):
-        L += ['\t<Detalle>', f'\t\t <NroLinDet>{i}</NroLinDet>', f'\t\t <CodServicio>{codigos[l.origen]}</CodServicio>',
+        L += ['\t<Detalle>', f'\t\t <NroLinDet>{i}</NroLinDet>', f'\t\t <CodServicio>{articulos.codigo(l, codigos)}</CodServicio>',
               '\t\t <Cantidad>1</Cantidad>', f'\t\t <Valor>{int(l.neto)}</Valor>',
               f'\t\t <{TAG_DETALLE}>{escape(detalle_linea(l))}</{TAG_DETALLE}>', '\t</Detalle>']
     L.append('</Documento>')

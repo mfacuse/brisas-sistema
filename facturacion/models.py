@@ -141,7 +141,7 @@ class LineaDocumento(models.Model):
 
 
 class CodigoServicioBsoft(models.Model):
-    """Código de servicio de BSOFT (<CodServicio>) que corresponde a cada tipo de línea, por sociedad."""
+    """Código de artículo (BSOFT <CodServicio>) que corresponde a cada tipo de línea, por sociedad (ver `articulos.py`)."""
     sociedad = models.ForeignKey('maestro.Sociedad', on_delete=models.CASCADE, related_name='codigos_bsoft')
     origen = models.CharField(max_length=5, choices=LineaDocumento.Origen.choices)
     codigo = models.CharField(max_length=10)
@@ -149,8 +149,8 @@ class CodigoServicioBsoft(models.Model):
 
     class Meta:
         unique_together = [('sociedad', 'origen')]
-        verbose_name = 'código de servicio BSOFT'
-        verbose_name_plural = 'códigos de servicio BSOFT'
+        verbose_name = 'código de artículo'
+        verbose_name_plural = 'códigos de artículo'
 
     def __str__(self):
         return f'{self.sociedad.nombre} · {self.get_origen_display()} → {self.codigo}'

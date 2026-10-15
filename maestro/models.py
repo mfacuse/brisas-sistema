@@ -186,6 +186,8 @@ class Contrato(models.Model):
     gastos_comunes = models.TextField('gastos comunes según contrato (referencia)', blank=True)
     cobra_gastos_comunes = models.CharField('quién cobra los gastos comunes', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
     cobra_agua = models.CharField('quién cobra el agua', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
+    condicion_pago = models.CharField('condición de pago', max_length=40, default='CREDITO',
+                                      help_text='Como va en la factura (por defecto CREDITO).')
     condiciones = models.TextField(blank=True)
     observaciones = models.TextField(blank=True)
     documentos_fuente = models.TextField(blank=True)
