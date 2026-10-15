@@ -43,6 +43,7 @@ urlpatterns = [
     path('contratos/archivos/', va.archivos, name='archivos'),
     path('contratos/actas/', va.actas, name='actas'),
     path('contratos/quien-cobra/', va.quien_cobra, name='quien_cobra'),
+    path('facturacion/codigos/', va.codigos_articulo, name='codigos_articulo'),
     path('contratos/actas/subir/', va.acta_subir, name='acta_subir'),
     path('contratos/actas/accion/', va.actas_accion, name='actas_accion'),
     path('contratos/actas/<int:pk>/', va.acta, name='acta'),

@@ -1,0 +1,10 @@
+{% extends 'panel/base.html' %}{% block titulo %}Códigos de artículo · Sistema Facturación{% endblock %}
+{% block contenido %}<p class="small"><a href="{% url 'facturacion' %}?sociedad={{ sociedad.id }}">← Facturación</a></p>
+<h1>Códigos de artículo</h1><p class="sub">El código que lleva cada línea de la factura en el Excel de facturación, para {{ sociedad.nombre }}.{% if not puede_forzar %} Solo un administrador puede cambiarlos.{% endif %}</p>
+<div class="toolbar"><form method="get"><label class="small">Empresa </label><select name="sociedad" onchange="this.form.submit()">{% for s in sociedades %}<option value="{{ s.id }}" {% if s == sociedad %}selected{% endif %}>{{ s.nombre }}</option>{% endfor %}</select></form></div>
+<form method="post" autocomplete="off">{% csrf_token %}<input type="hidden" name="sociedad" value="{{ sociedad.id }}"><div class="tw"><table><tr><th>Tipo de línea en la factura</th><th>Código</th><th>Descripción</th></tr>
+{% for f in filas %}<tr><td><b>{{ f.nombre }}</b></td>
+<td><input name="c_{{ f.origen }}" value="{{ f.codigo }}" maxlength="10" style="width:90px" {% if not puede_forzar %}disabled{% endif %}></td>
+<td><input name="d_{{ f.origen }}" value="{{ f.descripcion }}" maxlength="120" style="width:100%;min-width:260px" {% if not puede_forzar %}disabled{% endif %}></td></tr>{% endfor %}</table></div>
+<p class="small muted">En «Otro», el código cambia solo según el concepto del cargo: {% for nombre, cod in otros %}<b>{{ cod }}</b> si dice {{ nombre|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}; si no, se usa el código de la tabla.</p>
+{% if puede_forzar %}<p><button class="btn">Guardar</button></p>{% endif %}</form>{% endblock %}

@@ -540,3 +540,35 @@ def quien_cobra(request):
         return redirect(f'{reverse("quien_cobra")}?sociedad={soc.id}')
     c.update(contratos=contratos, opciones=Contrato.QuienCobra.choices)
     return render(request, 'panel/quien_cobra.html', c)
+
+
+# ------------------------------------------------------------------ códigos de artículo (por sociedad, tabla editable)
+@login_required
+def codigos_articulo(request):
+    from facturacion import articulos
+    from facturacion.models import CodigoServicioBsoft, LineaDocumento
+    c = ctx_base(request)
+    soc = c['sociedad']
+    actuales = {x.origen: x for x in CodigoServicioBsoft.objects.filter(sociedad=soc)}
+    filas = []
+    for origen, nombre in LineaDocumento.Origen.choices:
+        x = actuales.get(origen)
+        cod = x.codigo if x else articulos.POR_ORIGEN.get(origen, '')
+        filas.append(dict(origen=origen, nombre=nombre, codigo=cod, descripcion=(x.nota if x and x.nota else articulos.CATALOGO.get(cod, ''))))
+    if request.method == 'POST':
+        if not puede_forzar(request.user):
+            raise PermissionDenied
+        n = 0
+        for f in filas:
+            cod = (request.POST.get(f'c_{f["origen"]}') or '').strip()
+            desc = (request.POST.get(f'd_{f["origen"]}') or '').strip()
+            if not cod:
+                continue
+            obj = actuales.get(f['origen'])
+            if obj is None or (obj.codigo, obj.nota) != (cod, desc):
+                CodigoServicioBsoft.objects.update_or_create(sociedad=soc, origen=f['origen'], defaults={'codigo': cod, 'nota': desc})
+                n += 1
+        messages.success(request, f'{n} código(s) actualizado(s) para {soc.nombre}. Se usan en el próximo Excel de facturación.' if n else 'No hubo cambios.')
+        return redirect(f'{reverse("codigos_articulo")}?sociedad={soc.id}')
+    c.update(filas=filas, otros=[(articulos.CATALOGO[cod], cod) for _, cod in articulos.OTROS_POR_CONCEPTO])
+    return render(request, 'panel/codigos_articulo.html', c)

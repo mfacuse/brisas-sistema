@@ -49,7 +49,15 @@ class ConsumoAdmin(admin.ModelAdmin):
     search_fields = ('contrato__codigo', 'contrato__nombre_fantasia', 'medidor', 'concepto')
 
 
-admin.site.register([VentaMensual, CodigoServicioBsoft])
+admin.site.register(VentaMensual)
+
+
+@admin.register(CodigoServicioBsoft)
+class CodigoArticuloAdmin(admin.ModelAdmin):
+    list_display = ('sociedad', 'origen', 'codigo', 'nota')
+    list_editable = ('codigo', 'nota')
+    list_filter = ('sociedad',)
+    ordering = ('sociedad__nombre', 'origen')
 
 
 @admin.register(FacturaEmitida)

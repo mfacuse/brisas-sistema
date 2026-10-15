@@ -603,3 +603,20 @@ class ExcelFacturacionTest(Base):
         self.assertEqual(articulos.codigo(N(origen='OTRO', concepto='Arriendo de equipamiento', detalle=''), cod), '888')
         self.assertEqual(articulos.codigo(N(origen='OTRO', concepto='Reembolso', detalle=''), cod), '999')
         self.assertEqual(articulos.codigo(N(origen='AGUA', concepto='AGUA', detalle=''), {}), '444')
+
+
+class PantallaCodigosTest(Base):
+    def test_tabla_por_empresa_editable_solo_por_admin(self):
+        Group.objects.get_or_create(name='Operación')
+        op = User.objects.create_user('op3', password='x')
+        op.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(op)
+        url = f'/facturacion/codigos/?sociedad={self.soc.id}'
+        r = self.client.get(url)
+        self.assertContains(r, 'Gastos comunes')
+        self.assertContains(r, 'value="1002"')   # código actual de la renta en esta sociedad de prueba
+        self.assertEqual(self.client.post(url, {'c_RENTA': '111'}).status_code, 403)
+        self.client.force_login(User.objects.create_superuser('jefe2', password='x'))
+        self.client.post(url, {'c_RENTA': '111', 'd_RENTA': 'ARRIENDO', 'c_GGCC': '777', 'd_GGCC': 'GASTOS ADMINISTRATIVOS'})
+        cod = dict(CodigoServicioBsoft.objects.filter(sociedad=self.soc).values_list('origen', 'codigo'))
+        self.assertEqual((cod['RENTA'], cod['GGCC'], cod['ELEC']), ('111', '777', '1002'))
