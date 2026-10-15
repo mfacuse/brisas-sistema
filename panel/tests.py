@@ -83,15 +83,10 @@ class PanelTests(TestCase):
         r = self.client.get('/facturacion/excel/' + self.Q.format(self.soc.id))
         self.assertEqual(r.status_code, 200)
         self.assertIn('spreadsheetml', r['Content-Type'])
-        # XML sin códigos BSOFT: avisa y no marca como exportado
-        r = self.client.get('/facturacion/xml/' + self.Q.format(self.soc.id), follow=True)
-        self.assertContains(r, 'Faltan los códigos de servicio BSOFT')
+        # la opción de exportar el XML para BSOFT se quitó del panel (Matías, 2026-10-15)
+        self.assertEqual(self.client.get('/facturacion/xml/' + self.Q.format(self.soc.id)).status_code, 404)
+        self.assertNotContains(self.client.get('/facturacion/' + self.Q.format(self.soc.id)), 'XML para BSOFT')
         self.assertEqual(Documento.objects.filter(estado='X').count(), 0)
-        CodigoServicioBsoft.objects.create(sociedad=self.soc, origen='RENTA', codigo='1002')
-        CodigoServicioBsoft.objects.create(sociedad=self.soc, origen='RDIF', codigo='1003')
-        r = self.client.get('/facturacion/xml/' + self.Q.format(self.soc.id))
-        self.assertEqual(r['Content-Type'], 'application/zip')
-        self.assertEqual(Documento.objects.filter(estado='X').count(), 2)
 
     def test_administrador_puede_forzar(self):
         self.entrar('admin')
