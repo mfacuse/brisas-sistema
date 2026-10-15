@@ -306,6 +306,13 @@ class ContratoForm(forms.ModelForm):
         super().__init__(*a, **k)
         self.fields['locales'].queryset = self.fields['locales'].queryset.filter(propiedad=self.instance.propiedad_id)
         self.fields['locales'].required = False
+        from maestro.models import CondicionPago
+        cp = self.fields['condicion_pago']
+        cp.queryset = CondicionPago.objects.filter(Q(activa=True) | Q(pk=self.instance.condicion_pago_id))
+        cp.required, cp.empty_label = True, None
+        cp.help_text = 'Va en la factura y en el Excel. La lista se edita en Administración › Maestro › Condiciones de pago.'
+        if not self.instance.condicion_pago_id:
+            self.initial['condicion_pago'] = CondicionPago.por_defecto().pk
         self.fields['locales'].help_text = 'Locales que arrienda (para el plano). Mantenga Cmd (⌘) apretado para elegir varios.'
 
 

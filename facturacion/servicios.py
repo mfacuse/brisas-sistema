@@ -10,7 +10,7 @@ from django.db.models import Q
 
 from indicadores import servicio as ind
 from maestro import largos
-from maestro.models import Contrato
+from maestro.models import CondicionPago, Contrato
 
 from . import motor
 from .models import ConsumoServicio, Correlativo, Documento, FechaUFMes, LineaDocumento, VentaMensual
@@ -132,6 +132,7 @@ def generar_borradores(sociedad, año: int, mes: int, codigos=None, feriados=())
         afecto, exento, iva, total = motor.totales(neto, c.tipo_documento, tasa)
         doc = Documento.objects.create(
             contrato=c, periodo=periodo, tipo_documento=c.tipo_documento, valor_uf=r.valor_uf, fecha_uf=r.fecha_uf,
+            condicion_pago=str(c.condicion_pago or CondicionPago.POR_DEFECTO),
             glosa=motor.glosa(año, mes, r.valor_uf, r.fecha_uf), neto=afecto, exento=exento, iva=iva, total=total,
             advertencias=r.advertencias + [f'Nota: {n}' for n in r.notas if 'diferencia de renta variable' in n.lower()],
             # un número ya asignado (aprobado y vuelto a borrador) se conserva para no dejar saltos en la numeración

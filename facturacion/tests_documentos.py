@@ -567,7 +567,8 @@ class ExcelFacturacionTest(Base):
         import openpyxl
         from . import exportar
         from .models import ConsumoServicio
-        Contrato.objects.filter(pk=self.nc.pk).update(condicion_pago='Contado 5 días')
+        from maestro.models import CondicionPago
+        Contrato.objects.filter(pk=self.nc.pk).update(condicion_pago=CondicionPago.objects.get(nombre='CONTADO'))
         ConsumoServicio.objects.create(contrato=self.fa, servicio='OTRO', concepto='Habilitación del local', detalle='Diseño señalética',
                                        periodo_consumo=date(2026, 10, 1), periodo_cobro=date(2026, 10, 1), neto=50000)
         CodigoServicioBsoft.objects.filter(sociedad=self.soc).delete()   # sin tabla: usa los códigos estándar
@@ -589,7 +590,7 @@ class ExcelFacturacionTest(Base):
         self.assertEqual(otro['Código artículo'], '222')
         self.assertIn('Diseno senaletica', otro['Glosa y detalle del cálculo'])
         nc = next(f for f in filas if f['Contrato'] == 'P-02')
-        self.assertEqual(nc['Condición de pago'], 'CONTADO 5 DIAS')
+        self.assertEqual(nc['Condición de pago'], 'CONTADO')
         for f in filas:
             self.assertTrue(all(str(v).isascii() for k, v in f.items() if k in ('Glosa y detalle del cálculo', 'Concepto', 'Condición de pago')))
 
@@ -620,3 +621,28 @@ class PantallaCodigosTest(Base):
         self.client.post(url, {'c_RENTA': '111', 'd_RENTA': 'ARRIENDO', 'c_GGCC': '777', 'd_GGCC': 'GASTOS ADMINISTRATIVOS'})
         cod = dict(CodigoServicioBsoft.objects.filter(sociedad=self.soc).values_list('origen', 'codigo'))
         self.assertEqual((cod['RENTA'], cod['GGCC'], cod['ELEC']), ('111', '777', '1002'))
+
+
+
+class CondicionPagoTest(Base):
+    """Condiciones de pago en el maestro (Matías, 2026-10-15): lista desplegable en el contrato, CRÉDITO por defecto,
+    y se muestra en el documento, en el PDF de la nota de cobro y en el Excel."""
+    def test_maestro_por_defecto_y_en_la_factura(self):
+        from maestro.models import CondicionPago
+        self.assertEqual(list(CondicionPago.objects.values_list('nombre', flat=True)), ['CONTADO', 'CRÉDITO', 'CRÉDITO 30 DÍAS', 'CRÉDITO 60 DÍAS'])
+        self.fa.refresh_from_db()
+        self.assertEqual(str(self.fa.condicion_pago), 'CRÉDITO')   # contrato nuevo: CRÉDITO
+        c60 = CondicionPago.objects.get(nombre='CRÉDITO 60 DÍAS')
+        Contrato.objects.filter(pk=self.nc.pk).update(condicion_pago=c60)
+        docs = self.generar_y_aprobar()
+        self.assertEqual((docs['P-01'].condicion_pago, docs['P-02'].condicion_pago), ('CRÉDITO', 'CRÉDITO 60 DÍAS'))
+        texto = ''.join(p.extract_text() for p in PdfReader(io.BytesIO(nota_cobro.pdf_nota(docs['P-02']))).pages)
+        self.assertIn('60 D', texto)
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op4', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        self.assertContains(self.client.get(f'/documento/{docs["P-02"].pk}/'), 'CRÉDITO 60 DÍAS')
+        r = self.client.get('/contratos/P-01/editar/')
+        self.assertContains(r, '<select name="condicion_pago"')
+        self.assertNotContains(r, '---------')   # sin opción vacía

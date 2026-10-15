@@ -54,6 +54,12 @@ class ArrendatarioAdmin(admin.ModelAdmin):
 admin.site.register([m.Sociedad, m.Propiedad, m.ContratoServicio])
 
 
+@admin.register(m.CondicionPago)
+class CondicionPagoAdmin(admin.ModelAdmin):
+    list_display = ('nombre', 'orden', 'activa')
+    list_editable = ('orden', 'activa')
+
+
 @admin.register(m.ArchivoContrato)
 class ArchivoContratoAdmin(admin.ModelAdmin):
     list_display = ('nombre', 'sociedad', 'contrato', 'estado', 'ignorar', 'modificado', 'visto_ultima')

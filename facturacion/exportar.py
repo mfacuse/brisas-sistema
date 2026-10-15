@@ -80,7 +80,7 @@ def exportar_excel(sociedad, año: int, mes: int, estados=('A', 'X'), fecha_emis
             vals = {'N° interno': numero(d), 'Contrato': c.codigo, 'Tipo de documento': tipos.get(d.tipo_documento, d.tipo_documento),
                     'Fecha de emisión': fecha_emision, 'RUT cliente': c.arrendatario.rut, 'Razón social': c.arrendatario.razon_social,
                     'Nombre de fantasía': c.nombre_fantasia, 'Dirección (según contrato)': c.direccion_contrato,
-                    'Condición de pago': articulos.sin_tildes(c.condicion_pago or 'CREDITO').upper(), 'Línea': l.orden,
+                    'Condición de pago': articulos.sin_tildes(d.condicion_pago or str(c.condicion_pago or 'CREDITO')).upper(), 'Línea': l.orden,
                     'Código artículo': articulos.codigo(l, codigos), 'Concepto': articulos.sin_tildes(l.concepto),
                     'Glosa y detalle del cálculo': glosa_y_detalle(d, l), 'Unidad': l.unidad, 'Monto en UF o $': float(l.cantidad_unidad),
                     'Valor UF': float(l.valor_uf) if l.valor_uf else None, 'Neto $': int(l.neto), 'Exento (1 = sí)': 1 if l.exento else 0}

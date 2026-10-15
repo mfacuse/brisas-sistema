@@ -81,7 +81,8 @@ def pdf_nota(doc: Documento) -> bytes:
     pdf.set_font('Helvetica', '', 9.5)
     filas = [('Señor(es)', c.arrendatario.razon_social), ('RUT', c.arrendatario.rut), ('Dirección', c.direccion_contrato or ''),
              ('Contrato', f'{c.codigo} · {c.nombre_fantasia} · {c.propiedad.nombre}'),
-             ('Período', f'{motor.MESES[doc.periodo.month]} {doc.periodo.year}'), ('Fecha de emisión', emision.strftime('%d-%m-%Y'))]
+             ('Período', f'{motor.MESES[doc.periodo.month]} {doc.periodo.year}'), ('Fecha de emisión', emision.strftime('%d-%m-%Y')),
+             ('Condición de pago', doc.condicion_pago or str(c.condicion_pago or ''))]
     for k, v in filas:
         pdf.set_font('Helvetica', 'B', 9.5)
         pdf.cell(38, 6, _t(k))

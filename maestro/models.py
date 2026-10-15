@@ -102,6 +102,26 @@ class Arrendatario(models.Model):
         return f'{self.razon_social} ({self.rut})'
 
 
+class CondicionPago(models.Model):
+    """Condición de pago de las facturas (maestro; Matías, 2026-10-15): CONTADO, CRÉDITO, CRÉDITO 30 DÍAS, CRÉDITO 60 DÍAS…"""
+    POR_DEFECTO = 'CRÉDITO'
+    nombre = models.CharField(max_length=40, unique=True)
+    orden = models.PositiveSmallIntegerField(default=0)
+    activa = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['orden', 'nombre']
+        verbose_name = 'condición de pago'
+        verbose_name_plural = 'condiciones de pago'
+
+    def __str__(self):
+        return self.nombre
+
+    @classmethod
+    def por_defecto(cls):
+        return cls.objects.get_or_create(nombre=cls.POR_DEFECTO, defaults={'orden': 2})[0]
+
+
 class Contrato(models.Model):
     class TipoRenta(models.TextChoices):
         FIJA = 'FIJA', 'Fija'
@@ -186,8 +206,8 @@ class Contrato(models.Model):
     gastos_comunes = models.TextField('gastos comunes según contrato (referencia)', blank=True)
     cobra_gastos_comunes = models.CharField('quién cobra los gastos comunes', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
     cobra_agua = models.CharField('quién cobra el agua', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
-    condicion_pago = models.CharField('condición de pago', max_length=40, default='CREDITO',
-                                      help_text='Como va en la factura (por defecto CREDITO).')
+    condicion_pago = models.ForeignKey(CondicionPago, verbose_name='condición de pago', on_delete=models.PROTECT, null=True, blank=True,
+                                       related_name='contratos', help_text='Va en la factura y en el Excel (por defecto CRÉDITO).')
     condiciones = models.TextField(blank=True)
     observaciones = models.TextField(blank=True)
     documentos_fuente = models.TextField(blank=True)
@@ -218,6 +238,8 @@ class Contrato(models.Model):
     def save(self, *a, **k):
         if not self.codigo:
             self.codigo = self.propiedad.siguiente_codigo()
+        if self.condicion_pago_id is None:
+            self.condicion_pago = CondicionPago.por_defecto()
         # se completa sola mientras nadie la haya fijado a mano (una fecha escrita a mano no se pisa)
         if self.fecha_inicio_cobro is None or self.inicio_cobro_auto:
             calc = self.calcular_inicio_cobro()

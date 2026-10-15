@@ -102,6 +102,7 @@ class Documento(models.Model):
     aprobado_por = models.CharField(max_length=80, blank=True)
     aprobado_en = models.DateTimeField(null=True, blank=True)
     folio = models.CharField('folio SII (etapa BSOFT)', max_length=20, blank=True)
+    condicion_pago = models.CharField('condición de pago', max_length=40, blank=True, help_text='la del contrato al generar el documento')
     numero_interno = models.CharField('n.º interno', max_length=24, blank=True, db_index=True,
                                       help_text='Se asigna al aprobar: BT-F-0001 (factura) o BT-NC-0001 (nota de cobro). No se reutiliza.')
 

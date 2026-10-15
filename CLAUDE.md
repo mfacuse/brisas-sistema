@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (130 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (131 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -106,7 +106,8 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Excel de facturación (Matías, 2026-10-15): una columna «Glosa y detalle del cálculo» (sin tildes ni ñ), «Código artículo» y «Condición de pago».
   Códigos de artículo iguales en todas las sociedades (`facturacion/articulos.py`; tabla editable por empresa en Facturación › «Códigos de artículo»): arriendo y descuento 111,
   variable 333, agua 444, luz 555, gas 666, gastos comunes 777; «otros» según concepto: habilitación 222, gastos adm. 777, equipamiento 888, resto 999.
-  `Contrato.condicion_pago`: texto libre por contrato, por defecto CREDITO (se edita en «Editar condiciones»).
+  Condición de pago: maestro `CondicionPago` (Administración › Maestro; CONTADO, CRÉDITO, CRÉDITO 30/60 DÍAS), lista desplegable en «Editar condiciones»;
+  por defecto CRÉDITO. Se copia al `Documento` al generar y aparece en el documento, el PDF de la nota de cobro y el Excel (sin tildes).
 - XML de BSOFT: cada `<Detalle>` lleva `<DscItem>` con el texto del cálculo (concepto + detalle, ASCII, máx. 1000; nombre en `bsoft.TAG_DETALLE`).
 - La exportación XML a BSOFT quedó en pausa por instrucción de Matías (2026-10-09) hasta validar la facturación al 100 %; el código existe con códigos de servicio provisorios.
   El 2026-10-15 Matías pidió quitar del panel el botón «XML para BSOFT» (vista y ruta eliminadas); `bsoft.py`, sus pruebas y el comando `exportar_bsoft` siguen.

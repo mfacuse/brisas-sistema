@@ -15,7 +15,7 @@
 <dt>Aviso</dt><dd>{{ ct.aviso_dias|default:"—" }} días · prórroga {{ ct.prorroga_meses }} meses</dd>
 <dt>Tipo de renta</dt><dd>{{ ct.get_tipo_renta_display }}{% if ct.periodicidad == 'S' %} · semestral (meses {{ ct.meses_cobro }}){% endif %}{% if ct.reajuste_ipc %} · reajuste IPC{% endif %}</dd>
 {% if ct.pct_variable %}<dt>Variable</dt><dd>{{ ct.pct_variable|pct }} de las {% if ct.base_variable == 'V' %}ventas{% else %}ingresos{% endif %} netas del mes anterior{% if ct.variable_desde %} (desde {{ ct.variable_desde|fecha }}){% endif %}</dd>{% endif %}
-<dt>Documento</dt><dd>{{ ct.get_tipo_documento_display }} · {{ ct.get_regla_uf_display }}</dd>
+<dt>Documento</dt><dd>{{ ct.get_tipo_documento_display }} · {{ ct.get_regla_uf_display }}</dd><dt>Condición de pago</dt><dd>{{ ct.condicion_pago|default:'—' }}</dd>
 <dt>Gastos comunes y agua</dt><dd>gastos comunes: {{ ct.get_cobra_gastos_comunes_display }} · agua: {{ ct.get_cobra_agua_display }}</dd>
 <dt>Garantía</dt><dd>{% if ct.garantia_uf %}{{ ct.garantia_uf|uf }} UF{% elif ct.garantia_clp %}{{ ct.garantia_clp|clp }}{% else %}sin garantía registrada{% endif %}</dd></dl></div>
 <div class="card"><h2 style="margin-top:0">Simular la factura de un mes</h2><p class="small muted">Calcula sin guardar nada: sirve para probar la lógica de este contrato con cualquier mes.</p>
