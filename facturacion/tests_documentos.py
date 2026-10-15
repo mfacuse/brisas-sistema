@@ -580,7 +580,8 @@ class ExcelFacturacionTest(Base):
         filas = [dict(zip(enc, [c.value for c in f])) for f in ws.iter_rows(min_row=6) if f[1].value]
         por = {(f['Contrato'], f['Concepto']): f for f in filas}
         renta = next(f for f in filas if f['Contrato'] == 'P-01' and f['Código artículo'] == '111')
-        self.assertTrue(renta['Glosa y detalle del cálculo'].startswith('ARRIENDO - Octubre 2026 - UF 41.065,38'))
+        self.assertTrue(renta['Glosa y detalle del cálculo'].startswith('ARRIENDO - Octubre 2026 - Calculo: '))
+        self.assertEqual(renta['Glosa y detalle del cálculo'].count('41.065,38'), 1)   # la UF aparece una sola vez
         self.assertIn('Calculo: 27,00 UF', renta['Glosa y detalle del cálculo'])
         self.assertEqual(renta['Condición de pago'], 'CREDITO')   # por defecto
         self.assertEqual(renta['N° interno'], 'IP-F-0001')

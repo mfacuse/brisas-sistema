@@ -41,8 +41,8 @@ def numero(d) -> str:
 
 def glosa_y_detalle(d, l) -> str:
     """Glosa del documento y detalle del cálculo de la línea en un solo texto, sin tildes ni ñ:
-    «ARRIENDO - Octubre 2026 - UF 41.098,15 del 05/10/2026 - Calculo: 202,5 UF mes completo x UF 41.098,15»."""
-    partes = [l.concepto, d.glosa.replace('Valor de la UF', 'UF')]
+    «ARRIENDO - Octubre 2026 - Calculo: 202,50 UF (…) x UF 41.098,15 del 05-10-2026»."""
+    partes = [l.concepto, d.glosa.split(' · ')[0]]   # solo el mes: el valor de la UF ya viene en el cálculo
     if l.detalle:
         partes.append('Calculo: ' + l.detalle)
     return articulos.sin_tildes(' - '.join(p.strip() for p in partes if p and p.strip()))
