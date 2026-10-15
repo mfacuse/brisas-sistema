@@ -20,7 +20,6 @@ urlpatterns = [
     path('facturacion/aprobar/', v.aprobar_todo, name='aprobar_todo'),
     path('facturacion/volver/', v.volver_borrador_todo, name='volver_borrador_todo'),
     path('facturacion/excel/', v.exportar_excel, name='exportar_excel'),
-    path('facturacion/xml/', v.exportar_xml, name='exportar_xml'),
     path('documento/<int:pk>/', v.documento, name='documento'),
     path('documento/<int:pk>/accion/', v.documento_accion, name='documento_accion'),
     path('facturacion/notas-cobro/', va.notas_cobro_mes, name='notas_cobro_mes'),

@@ -105,6 +105,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   al aprobar (BT-F-0001 / BT-NC-0001), nunca se reutiliza.
 - XML de BSOFT: cada `<Detalle>` lleva `<DscItem>` con el texto del cálculo (concepto + detalle, ASCII, máx. 1000; nombre en `bsoft.TAG_DETALLE`).
 - La exportación XML a BSOFT quedó en pausa por instrucción de Matías (2026-10-09) hasta validar la facturación al 100 %; el código existe con códigos de servicio provisorios.
+  El 2026-10-15 Matías pidió quitar del panel el botón «XML para BSOFT» (vista y ruta eliminadas); `bsoft.py`, sus pruebas y el comando `exportar_bsoft` siguen.
 
 ## Pendientes abiertos (ver `docs/decisiones-fase1.md`)
 Ventas reales de septiembre de SchopDog (B-21) y Santa Isabel (B-36); confirmar los 40 medidores; regla de prorrata de B-13 y B-20; carga de ventas desde el Excel de RobFre;

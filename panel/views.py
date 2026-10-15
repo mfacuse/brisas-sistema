@@ -14,7 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from facturacion import asignacion, bsoft, cargas, comparacion, exportar, lectores, motor, servicios
+from facturacion import asignacion, cargas, comparacion, exportar, lectores, motor, servicios
 from facturacion.models import CargaPlanilla, ConsumoServicio, Documento, FechaUFMes, FacturaEmitida, MedidorServicio, VentaMensual
 from indicadores import servicio as ind
 from indicadores.models import IPC, UF
@@ -87,7 +87,7 @@ def inicio(request):
              + (f' · faltan ventas de {len(ventas_pend)} contrato(s)' if ventas_pend else ''), url='cargas'),
         dict(n=3, titulo='Generar borradores', ok=docs.exists(), texto=f'{docs.count()} de {n_contratos} contratos con documento', url='facturacion'),
         dict(n=4, titulo='Revisar y aprobar', ok=docs.exists() and por_estado['B'] == 0, texto=f'{por_estado["B"]} borradores · {con_adv} con advertencias · {por_estado["A"] + por_estado["X"]} aprobados', url='facturacion'),
-        dict(n=5, titulo='Exportar', ok=por_estado['X'] > 0, texto='Excel de revisión y XML para BSOFT', url='facturacion'),
+        dict(n=5, titulo='Exportar', ok=por_estado['X'] > 0, texto='Excel de revisión', url='facturacion'),
     ]
     c.update(docs_n=docs.count(), por_estado=por_estado, tot=tot, pasos=pasos, medidores_pend=medidores_pend,
              alertas=[a for a in servicios.alertas_vigentes(timezone.localdate(), 90, soc) if a[2] in ('ALTA', 'MEDIA')][:8])
@@ -192,18 +192,6 @@ def exportar_excel(request):
         messages.error(request, str(e))
         return redirect(f'/facturacion/?sociedad={soc.id}&periodo={p:%Y-%m}')
     return FileResponse(open(ruta, 'rb'), as_attachment=True, filename=os.path.basename(ruta))
-
-
-@requiere_operacion
-def exportar_xml(request):
-    p, (soc, _) = _periodo(request), _sociedad(request)
-    try:
-        carpeta, zpath, archivos = bsoft.exportar_xml(soc, p.year, p.month, estados=('A', 'X'))
-    except (ValueError, bsoft.FaltanCodigos) as e:
-        messages.error(request, str(e))
-        return redirect(f'/facturacion/?sociedad={soc.id}&periodo={p:%Y-%m}')
-    Documento.objects.filter(contrato__sociedad=soc, periodo=p, estado='A').exclude(tipo_documento='NC').update(estado='X')
-    return FileResponse(open(zpath, 'rb'), as_attachment=True, filename=os.path.basename(zpath))
 
 
 # ------------------------------------------------------------------ documento
