@@ -52,7 +52,7 @@ def linea_consumo(cs: ConsumoServicio) -> motor.LineaCalc:
         return motor.LineaCalc('OTRO', (cs.concepto or 'OTRO CARGO').upper(), cs.detalle or '', 'CLP', D(cs.neto), None, int(cs.neto))
     concepto = CONCEPTOS[cs.servicio]
     partes = [f'{"Gastos comunes" if cs.servicio == "GGCC" else "Consumo"} de {mes}']
-    if cs.medidor:
+    if cs.medidor and cs.servicio != 'GGCC':   # gastos comunes no tienen medidor (lo de la planilla es el n.º de local)
         partes.append(f'medidor {cs.medidor}')
     if cs.lectura_anterior is not None and cs.lectura_actual is not None:
         txt = f'lectura {_num(cs.lectura_anterior, 0)} → {_num(cs.lectura_actual, 0)}'

@@ -367,6 +367,7 @@ class AguaYGastosComunesTest(Base):
         linea = fa.lineas.get(origen='GGCC')
         self.assertEqual((linea.concepto, int(linea.neto), linea.exento), ('GASTOS COMUNES', 100000, False))
         self.assertIn('Gastos comunes de Septiembre 2026', linea.detalle)
+        self.assertNotIn('medidor', linea.detalle)   # gastos comunes: sin «medidor» (Matías, 2026-10-15)
         renta = sum(int(l.neto) for l in fa.lineas.exclude(origen='GGCC'))
         self.assertEqual(int(fa.iva), servicios.motor.peso(D(renta + 100000) * D('0.19')))   # IVA también sobre los gastos comunes
         nc = Documento.objects.get(contrato=self.nc)
