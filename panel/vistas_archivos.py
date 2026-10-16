@@ -128,6 +128,7 @@ def configuracion_guardar(request):
         if ruta and tipo == 'contratos':
             r = carpetas.revisar(s, _usuario(request))
             messages.info(request, f'Revisión: {r}')
+            ia.leer_pendientes(s, _usuario(request))
         elif ruta and tipo == 'actas':
             messages.info(request, f'Actas: {carpetas.revisar_actas(s)}')
         elif ruta:
@@ -175,6 +176,9 @@ def revisar_carpeta(request):
     soc, _ = _sociedad(request)
     r = carpetas.revisar(soc, _usuario(request))
     (messages.error if r.error else messages.success)(request, f'Carpeta revisada · {r}')
+    n = ia.leer_pendientes(soc, _usuario(request))
+    if n:
+        messages.info(request, f'La IA está leyendo {n} archivo(s) nuevo(s) o cambiado(s). Las propuestas aparecerán en unos minutos para revisarlas.')
     return redirect(request.POST.get('volver') or f'{reverse("archivos")}?sociedad={soc.id}')
 
 
@@ -187,7 +191,7 @@ def archivos(request):
     lista = list(qs)
     for a in lista:
         a.ultima = a.propuestas.all()[0] if a.propuestas.all() else None
-    c.update(pendientes=[a for a in lista if a.pendiente], al_dia=[a for a in lista if a.estado == 'R' and not a.ignorar],
+    c.update(pendientes=[a for a in lista if a.pendiente], al_dia=[a for a in lista if a.estado == 'R' and not a.ignorar and not a.pendiente],
              ignorados=[a for a in lista if a.ignorar and a.estado != 'E'], eliminados=[a for a in lista if a.estado == 'E'],
              contratos=Contrato.objects.filter(sociedad=soc).order_by('codigo'), clave=ia.clave_configurada(),
              leyendo=any(a.ultima and a.ultima.estado == 'P' for a in lista),
@@ -213,6 +217,11 @@ def archivo_accion(request, pk):
         a.save()
         EventoArchivo.objects.create(archivo=a, tipo='ASOCIADO', usuario=u, detalle=f'asociado a {c.codigo}' if c else 'sin contrato')
         messages.success(request, f'«{a.nombre}» ' + (f'asociado a {c.codigo}.' if c else 'quedó sin contrato.'))
+    elif accion == 'revisado' and a.propuestas.filter(estado__in=('P', 'L')).exists():
+        p = a.propuestas.filter(estado__in=('P', 'L')).first()
+        messages.error(request, f'«{a.nombre}» tiene una propuesta de la IA sin resolver: ábrala y aplique los cambios o descártela '
+                                '(así ningún cambio de renta queda olvidado).')
+        return redirect('propuesta', pk=p.pk) if p.estado == 'L' else redirect(volver)
     elif accion == 'revisado':
         a.estado, a.revisado_por, a.revisado_en = 'R', u, timezone.now()
         a.save()
@@ -238,14 +247,10 @@ def archivo_accion(request, pk):
 def leer_pendientes_ia(request):
     soc, _ = _sociedad(request)
     n = 0
-    try:
-        for a in ArchivoContrato.objects.filter(sociedad=soc, estado__in=('N', 'C'), ignorar=False):
-            if a.propuestas.filter(estado__in=('P', 'L')).exists():
-                continue
-            ia.iniciar(a, _usuario(request))
-            n += 1
-    except ia.SinClave as e:
-        messages.error(request, str(e))
+    if not ia.clave_api():
+        messages.error(request, 'Falta la clave de la IA (Anthropic). Ingrésela en Contratos › Carpetas y configuración.')
+    else:
+        n = ia.leer_pendientes(soc, _usuario(request))
     if n:
         messages.info(request, f'La IA está leyendo {n} archivos. Las propuestas aparecerán en unos minutos.')
     return redirect(f'{reverse("archivos")}?sociedad={soc.id}')

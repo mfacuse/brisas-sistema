@@ -393,7 +393,10 @@ class ArchivoContrato(models.Model):
 
     @property
     def pendiente(self):
-        return self.estado in ('N', 'C') and not self.ignorar
+        # también queda pendiente si la IA lo leyó y nadie aplicó ni descartó su propuesta
+        if self.ignorar or self.estado == 'E':
+            return False
+        return self.estado in ('N', 'C') or self.propuestas.filter(estado__in=('P', 'L')).exists()
 
 
 class EventoArchivo(models.Model):

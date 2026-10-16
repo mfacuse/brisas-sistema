@@ -665,3 +665,14 @@ class LuzNoSeCobraTest(Base):
         fa, nc = Documento.objects.get(contrato=self.fa), Documento.objects.get(contrato=self.nc)
         self.assertFalse(fa.lineas.filter(origen='ELEC').exists())
         self.assertTrue(nc.lineas.filter(origen='ELEC').exists())
+
+
+class AnexoDeRentaTest(Base):
+    def test_anexo_con_fecha_posterior_manda_sin_advertencia(self):
+        """Anexo O-01: «se acuerda fijar renta desde enero 2026 a diciembre 2026 en UF 187,65» sobre tramos antiguos."""
+        TramoRenta.objects.create(contrato=self.fa, desde=date(2025, 1, 1), monto=D('30'), unidad='UF')   # dos tramos antiguos empatados
+        TramoRenta.objects.create(contrato=self.fa, desde=date(2026, 1, 1), hasta=date(2026, 12, 31), monto=D('187.65'), unidad='UF')
+        servicios.generar_borradores(self.soc, 2026, 10)
+        doc = Documento.objects.get(contrato=self.fa)
+        self.assertFalse(any('a la vez' in a for a in doc.advertencias))
+        self.assertIn('187,65 UF', doc.lineas.get(origen='RENTA').detalle)

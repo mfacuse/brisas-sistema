@@ -162,10 +162,13 @@ def tramo_en(c: ContratoD, d: date) -> Optional[TramoD]:
 
 
 def tramos_superpuestos(c: ContratoD, año: int, mes: int) -> list:
-    """Advertencia si en el mes rigen a la vez dos tramos con montos distintos (p. ej. todos con la misma fecha «desde»):
+    """Advertencia si en el mes rigen a la vez dos tramos con montos distintos y la misma fecha «desde» (la más reciente):
     el sistema no puede saber cuál cobrar y no debe elegir uno en silencio."""
     for d in (date(año, mes, 1), date(año, mes, calendar.monthrange(año, mes)[1])):
         cand = [t for t in c.tramos if t.desde <= d and (t.hasta is None or d <= t.hasta)]
+        if cand:   # rige el de «desde» más reciente (p. ej. un anexo que fija la renta de 2026); solo hay duda si empatan
+            ultimo = max(t.desde for t in cand)
+            cand = [t for t in cand if t.desde == ultimo]
         if len({(t.monto, t.unidad) for t in cand}) > 1:
             montos = ', '.join(f'{fmt_uf(t.monto)} UF' if t.unidad == 'UF' else fmt_clp(t.monto) for t in sorted(cand, key=lambda t: t.desde))
             return [f'Hay {len(cand)} tramos de renta vigentes a la vez el {fmt_fecha(d)} ({montos}): '

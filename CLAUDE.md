@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (132 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (135 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -60,7 +60,9 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   (desde el 2026-10-13 ya **no** corre al encender: Matías borró todos los contratos y documentos para partir desde cero y los contratos entran solo
   por la carpeta de PDF + IA o a mano; respaldo previo en `Respaldos/brisas_antes_de_borrar_todo_2026-10-13_2026.sqlite3`).
   `carpetas.py` revisa la carpeta de contratos de cada sociedad (elegida en el panel); `ia.py` lee PDF con Claude y propone cambios (nunca los aplica solo);
-  `historial.py` registra todo cambio (señales + middleware). `.clave_anthropic` es privada, como `.clave_secreta`.
+  `historial.py` registra todo cambio (señales + middleware).
+  Todos los PDF nuevos o cambiados se leen solos con la IA (`ia.leer_pendientes`: al revisar la carpeta y en la tarea diaria; Matías,
+  2026-10-15, porque hay acuerdos de cambio de renta). Un archivo con propuesta sin aplicar ni descartar sigue «pendiente» y no se puede marcar revisado. `.clave_anthropic` es privada, como `.clave_secreta`.
 - `indicadores/`: UF e IPC oficiales. Banco Central (API BDE) si existe `.token_bcentral` (privado, como `.clave_secreta`); si no, o si falla, SII
   (publica la UF y el IPC del INE, sin registro). mindicador.cl se dejó de usar el 2026-10-13: no respondía y hacía lento el encendido.
 - `facturacion/motor.py`: cálculo de rentas, **puro** (no toca la base de datos). `servicios.py` lo conecta con la base (borradores, aprobación, alertas).

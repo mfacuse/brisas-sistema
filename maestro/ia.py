@@ -244,11 +244,25 @@ def diferencias(prop: PropuestaIA):
 
 
 # ------------------------------------------------------------------ lectura
-def iniciar(archivo: ArchivoContrato, usuario: str) -> PropuestaIA:
+def leer_pendientes(sociedad, usuario: str = 'sistema', segundo_plano=None) -> int:
+    """Pide a la IA leer todos los PDF nuevos o cambiados de la sociedad que no tengan una lectura en curso o por revisar
+    (Matías, 2026-10-15: se leen todos, porque a veces son acuerdos de cambio de renta). Sin clave de IA no hace nada."""
+    if not clave_api():
+        return 0
+    n = 0
+    for a in ArchivoContrato.objects.filter(sociedad=sociedad, estado__in=('N', 'C'), ignorar=False):
+        if a.propuestas.filter(estado__in=('P', 'L')).exists():
+            continue
+        iniciar(a, usuario, segundo_plano)
+        n += 1
+    return n
+
+
+def iniciar(archivo: ArchivoContrato, usuario: str, segundo_plano=None) -> PropuestaIA:
     if not clave_api():
         raise SinClave('Falta la clave de la IA (Anthropic). Ingrésela en Contratos › Carpetas y configuración.')
     prop = PropuestaIA.objects.create(archivo=archivo, contrato=archivo.contrato, pedida_por=usuario, modelo=settings.IA_MODELO)
-    if EN_SEGUNDO_PLANO:
+    if EN_SEGUNDO_PLANO if segundo_plano is None else segundo_plano:
         threading.Thread(target=ejecutar, args=(prop.pk,), daemon=True).start()
     else:
         ejecutar(prop.pk)

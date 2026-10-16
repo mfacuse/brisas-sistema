@@ -591,3 +591,46 @@ class DriveTest(Base):
         self.assertEqual([x.nombre for x in r.movidos], ['Contrato Local 1 Ale.pdf'])
         self.assertEqual(sorted(x.nombre for x in r.nuevos), ['Anexo real.pdf', 'Viejo.pdf'])
         self.assertEqual(ArchivoContrato.objects.get(nombre='Viejo.pdf').url_drive, 'https://drive.google.com/file/d/f2/view')
+
+
+class TodosLosPdfSeLeenTest(Base):
+    """Caso O-01 (2026-10-15): un anexo que fijaba la renta 2026 se leyó, pero se marcó «revisado» sin aplicar la propuesta."""
+    def _usuario(self):
+        from django.contrib.auth.models import Group
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op9', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+
+    def test_no_se_marca_revisado_con_propuesta_sin_resolver(self):
+        from .models import ArchivoContrato, PropuestaIA
+        a = ArchivoContrato.objects.create(sociedad=self.soc, ruta=str(self.carpeta / 'anexo.pdf'), nombre='anexo.pdf', contrato=self.c1, estado='N')
+        p = PropuestaIA.objects.create(archivo=a, contrato=self.c1, estado='L', datos={'resumen': 'fija renta 2026'})
+        self._usuario()
+        r = self.client.post(f'/contratos/archivos/{a.pk}/accion/', {'accion': 'revisado'})
+        a.refresh_from_db()
+        self.assertEqual(a.estado, 'N')
+        self.assertTrue(a.pendiente)
+        self.assertRedirects(r, f'/contratos/propuesta/{p.pk}/', fetch_redirect_response=False)
+        # aunque el archivo ya figure como revisado, sigue pendiente mientras la propuesta no se aplique ni descarte
+        ArchivoContrato.objects.filter(pk=a.pk).update(estado='R')
+        a.refresh_from_db()
+        self.assertTrue(a.pendiente)
+        p.estado = 'D'
+        p.save()
+        self.assertFalse(a.pendiente)
+
+    def test_revisar_la_carpeta_lee_con_ia_todos_los_pdf_nuevos(self):
+        from unittest import mock
+        from . import ia
+        from .models import ArchivoContrato
+        _pdf(self.carpeta / 'CONTRATO ARR. FIJO PLAZA MOTOR AUOPLANET  MODIFICACION PRUEBA.pdf')
+        _pdf(self.carpeta / 'Otro anexo.pdf')
+        carpetas.revisar(self.soc)
+        with mock.patch.object(ia, 'clave_api', return_value='sk-ant-prueba'), mock.patch.object(ia, 'ejecutar') as ejecutar:
+            self.assertEqual(ia.leer_pendientes(self.soc, 'prueba', segundo_plano=False), 2)
+            self.assertEqual(ejecutar.call_count, 2)
+            self.assertEqual(ia.leer_pendientes(self.soc, 'prueba', segundo_plano=False), 0)   # ya tienen lectura en curso
+        self.assertEqual(ArchivoContrato.objects.filter(propuestas__isnull=False).distinct().count(), 2)
+        with mock.patch.object(ia, 'clave_api', return_value=None):
+            self.assertEqual(ia.leer_pendientes(self.soc), 0)   # sin clave no hace nada
