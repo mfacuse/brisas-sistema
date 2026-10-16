@@ -96,7 +96,8 @@ def calcular_contrato(c: Contrato, año: int, mes: int, feriados=()):
     for cs in ConsumoServicio.objects.filter(contrato=c, periodo_cobro=periodo).select_related('medidor_ref').order_by('servicio', 'medidor', 'id'):
         if not c.cobra_inmobiliaria(cs.servicio):
             # cargado antes de marcar el contrato como «lo cobra Megaservicios»: no se incluye
-            r.notas.append(f'{cs.get_servicio_display()} cargado pero lo cobra Megaservicios: no va en esta factura.')
+            quien = 'lo cobra Megaservicios' if c.quien_cobra(cs.servicio) == 'MEGA' else 'el contrato dice que no se cobra'
+            r.notas.append(f'{cs.get_servicio_display()} cargado pero {quien}: no va en esta factura.')
             continue
         lineas.append(linea_consumo(cs))
         if cs.medidor_ref and not cs.medidor_ref.confirmado:

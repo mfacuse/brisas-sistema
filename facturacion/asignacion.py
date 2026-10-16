@@ -138,13 +138,14 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
             sin_asignar.append(d)
             continue
         mega = not c.cobra_inmobiliaria(carga.servicio)
+        quien = 'los cobra Megaservicios' if c.quien_cobra(carga.servicio) == 'MEGA' else 'el contrato dice que no se cobra'
         m, _ = MedidorServicio.objects.get_or_create(servicio=carga.servicio, etiqueta_local=d['etiqueta'][:60], nombre_planilla=d['nombre'][:80],
                                                      defaults=dict(contrato=c, tarifa=d['tarifa'][:40]))
         m.contrato, m.confirmado = c, True
         m.nota = (f'Confirmado por {usuario}' + (f' (propuesta de la IA: {d["motivo"]})' if d.get('fuente') == 'IA' else ''))[:200]
         m.save()
         if mega:
-            de_megaservicios.append(f'{c.codigo} {c.nombre_fantasia}')   # se recuerda el local, pero no se cobra en la factura
+            de_megaservicios.append(f'{c.codigo} {c.nombre_fantasia} ({quien})')   # se recuerda el local, pero no se cobra en la factura
             continue
         a_cargar.append(f)
     if sin_asignar:
@@ -154,7 +155,7 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
     carga.estado = CargaPlanilla.Estado.CARGADA
     carga.resultado = (f'{res.cargados} cargos por ${int(res.total):,}'.replace(',', '.') + (f' · no se cobran: {", ".join(no_cobra)}' if no_cobra else '')
                        + (f' · sin cobro ($0): {", ".join(res.en_cero)}' if res.en_cero else '')
-                       + (f' · los cobra Megaservicios (no van en la factura): {", ".join(de_megaservicios)}' if de_megaservicios else '')
+                       + (f' · no van en la factura: {", ".join(de_megaservicios)}' if de_megaservicios else '')
                        + f' · confirmado por {usuario}')
     carga.save()
     return res

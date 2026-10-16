@@ -385,7 +385,7 @@ class AguaYGastosComunesTest(Base):
         carga = asignacion.preparar(self.soc, 'AGUA', filas, date(2026, 9, 1), date(2026, 10, 1), 'agua.xlsx', 'op')
         asignacion.confirmar(carga, {2: 'P-01', 3: 'P-02'}, 'op')
         self.assertEqual(list(ConsumoServicio.objects.values_list('contrato__codigo', flat=True)), ['P-01'])
-        self.assertIn('los cobra Megaservicios', carga.resultado)
+        self.assertIn('(los cobra Megaservicios)', carga.resultado)
         # si después se cambia P-01 a Megaservicios, lo ya cargado no entra en la factura
         Contrato.objects.filter(pk=self.fa.pk).update(cobra_agua='MEGA')
         servicios.generar_borradores(self.soc, 2026, 10)
@@ -397,11 +397,17 @@ class AguaYGastosComunesTest(Base):
         u = User.objects.create_user('op', password='x')
         u.groups.add(Group.objects.get(name='Operación'))
         self.client.force_login(u)
-        self.assertContains(self.client.get(f'/contratos/quien-cobra/?sociedad={self.soc.id}'), 'Megaservicios (directo al arrendatario)')
-        datos = {f'g_{self.fa.pk}': 'INM', f'a_{self.fa.pk}': 'MEGA', f'g_{self.nc.pk}': 'MEGA', f'a_{self.nc.pk}': 'MEGA', 'sociedad': self.soc.id}
+        r = self.client.get(f'/contratos/quien-cobra/?sociedad={self.soc.id}')
+        for txt in ('Megaservicios (directo al arrendatario)', '<th>Luz</th>', '<th>Gas</th>', '<th>Agua</th>', '<th>Gastos comunes</th>'):
+            self.assertContains(r, txt)
+        self.assertEqual((self.fa.cobra_luz, self.fa.cobra_gas), ('INM', 'INM'))   # por defecto luz y gas los cobra la inmobiliaria
+        datos = {f'cobra_gastos_comunes_{self.fa.pk}': 'INM', f'cobra_agua_{self.fa.pk}': 'MEGA', f'cobra_luz_{self.fa.pk}': 'NO',
+                 f'cobra_gas_{self.fa.pk}': 'INM', 'sociedad': self.soc.id}
         self.client.post(f'/contratos/quien-cobra/?sociedad={self.soc.id}', datos)
         self.fa.refresh_from_db()
-        self.assertEqual((self.fa.cobra_gastos_comunes, self.fa.cobra_agua), ('INM', 'MEGA'))
+        self.assertEqual((self.fa.cobra_gastos_comunes, self.fa.cobra_agua, self.fa.cobra_luz), ('INM', 'MEGA', 'NO'))
+        self.assertFalse(self.fa.cobra_inmobiliaria('ELEC'))
+        self.assertTrue(self.fa.cobra_inmobiliaria('GAS'))
         self.assertTrue(RegistroCambio.objects.filter(contrato=self.fa, usuario='op').exists())
 
 
@@ -646,3 +652,16 @@ class CondicionPagoTest(Base):
         r = self.client.get('/contratos/P-01/editar/')
         self.assertContains(r, '<select name="condicion_pago"')
         self.assertNotContains(r, '---------')   # sin opción vacía
+
+
+
+class LuzNoSeCobraTest(Base):
+    def test_luz_que_no_se_cobra_no_va_en_la_factura(self):
+        from .models import ConsumoServicio
+        Contrato.objects.filter(pk=self.fa.pk).update(cobra_luz='NO')
+        for c in (self.fa, self.nc):
+            ConsumoServicio.objects.create(contrato=c, servicio='ELEC', periodo_consumo=date(2026, 9, 1), periodo_cobro=date(2026, 10, 1), neto=10000)
+        servicios.generar_borradores(self.soc, 2026, 10)
+        fa, nc = Documento.objects.get(contrato=self.fa), Documento.objects.get(contrato=self.nc)
+        self.assertFalse(fa.lineas.filter(origen='ELEC').exists())
+        self.assertTrue(nc.lineas.filter(origen='ELEC').exists())

@@ -153,6 +153,7 @@ class Contrato(models.Model):
     class QuienCobra(models.TextChoices):
         MEGASERVICIOS = 'MEGA', 'Megaservicios (directo al arrendatario)'
         INMOBILIARIA = 'INM', 'La inmobiliaria (en la factura)'
+        NO_SE_COBRA = 'NO', 'No se cobra (paga directo a la empresa de servicio)'
 
     class BaseVariable(models.TextChoices):
         NINGUNA = '', 'Sin renta variable'
@@ -206,6 +207,8 @@ class Contrato(models.Model):
     gastos_comunes = models.TextField('gastos comunes según contrato (referencia)', blank=True)
     cobra_gastos_comunes = models.CharField('quién cobra los gastos comunes', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
     cobra_agua = models.CharField('quién cobra el agua', max_length=4, choices=QuienCobra.choices, default=QuienCobra.MEGASERVICIOS)
+    cobra_luz = models.CharField('quién cobra la luz', max_length=4, choices=QuienCobra.choices, default=QuienCobra.INMOBILIARIA)
+    cobra_gas = models.CharField('quién cobra el gas', max_length=4, choices=QuienCobra.choices, default=QuienCobra.INMOBILIARIA)
     condicion_pago = models.ForeignKey(CondicionPago, verbose_name='condición de pago', on_delete=models.PROTECT, null=True, blank=True,
                                        related_name='contratos', help_text='Va en la factura y en el Excel (por defecto CRÉDITO).')
     condiciones = models.TextField(blank=True)
@@ -248,12 +251,11 @@ class Contrato(models.Model):
         super().save(*a, **k)
 
     def cobra_inmobiliaria(self, servicio: str) -> bool:
-        """¿La inmobiliaria cobra este servicio en su factura? (gastos comunes y agua pueden cobrarlos Megaservicios directamente)."""
-        if servicio == 'GGCC':
-            return self.cobra_gastos_comunes == 'INM'
-        if servicio == 'AGUA':
-            return self.cobra_agua == 'INM'
-        return True
+        """¿La inmobiliaria cobra este servicio en su factura? (lo puede cobrar Megaservicios o no cobrarse; pantalla «Quién cobra cada servicio»)."""
+        return self.quien_cobra(servicio) == 'INM'
+
+    def quien_cobra(self, servicio: str) -> str:
+        return {'GGCC': self.cobra_gastos_comunes, 'AGUA': self.cobra_agua, 'ELEC': self.cobra_luz, 'GAS': self.cobra_gas}.get(servicio, 'INM')
 
     @property
     def meses_cobro_lista(self):

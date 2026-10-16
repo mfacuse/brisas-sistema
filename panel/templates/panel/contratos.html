@@ -4,7 +4,7 @@
 <input type="text" name="q" value="{{ q }}" placeholder="Buscar: código, local, razón social, RUT"> <label class="small"><input type="checkbox" name="sociedad_todas" value="1" {% if solo %}checked{% endif %} onchange="this.form.submit()"> todas las sociedades</label>
 <button class="btn sm">Buscar</button></form>
 <a class="btn sm sec" href="{% url 'actas' %}?sociedad={{ sociedad.id }}">Actas de entrega</a>
-<a class="btn sm sec" href="{% url 'quien_cobra' %}?sociedad={{ sociedad.id }}">Quién cobra gastos comunes y agua</a>
+<a class="btn sm sec" href="{% url 'quien_cobra' %}?sociedad={{ sociedad.id }}">Quién cobra cada servicio</a>
 <a class="btn sm sec" href="{% url 'archivos' %}?sociedad={{ sociedad.id }}">Archivos de contratos{% if archivos_pendientes %} ({{ archivos_pendientes }} por revisar){% endif %}</a>
 {% if puede_operar %}<form method="post" action="{% url 'revisar_carpeta' %}">{% csrf_token %}<input type="hidden" name="sociedad" value="{{ sociedad.id }}"><input type="hidden" name="volver" value="{% url 'contratos' %}?sociedad={{ sociedad.id }}"><button class="btn sm" {% if not sociedad.carpeta_contratos %}disabled title="Sin carpeta configurada"{% endif %}>Actualizar desde la carpeta</button></form>{% endif %}
 <a class="btn sm sec" href="{% url 'configuracion' %}">Carpetas y configuración</a></div>

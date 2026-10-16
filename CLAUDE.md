@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (131 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (132 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -98,6 +98,8 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Gastos comunes y agua (decisión de Matías, 2026-10-14): según cada contrato los cobra Megaservicios directo o la inmobiliaria en su factura
   (`Contrato.cobra_gastos_comunes` / `cobra_agua`, independientes; por defecto Megaservicios; pantalla «Quién cobra gastos comunes y agua»).
   Solo los de la inmobiliaria se cargan y facturan; los demás se marcan «lo cobra Megaservicios».
+  Desde el 2026-10-15 la pantalla es «Quién cobra cada servicio» e incluye luz y gas (`cobra_luz`/`cobra_gas`, por defecto la inmobiliaria)
+  y la opción «No se cobra» (paga directo a la empresa de servicio). `Contrato.quien_cobra(servicio)` / `cobra_inmobiliaria(servicio)`.
   Llegan en una planilla mensual, distinta por arrendatario; `lectores.leer_generica` detecta las columnas (local/nombre/neto; agua: m³ y lecturas).
   Se asignan como luz y gas (medidor confirmado + IA, con revisión). Con IVA igual que el arriendo; exentas y notas de cobro, sin IVA.
   Mes de la planilla → factura del mes siguiente (elegible al cargar). Faltan sus códigos de servicio BSOFT (AGUA, GGCC).
