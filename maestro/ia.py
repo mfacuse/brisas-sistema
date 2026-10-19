@@ -10,7 +10,7 @@ import base64
 import json
 import os
 import threading
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 
@@ -18,7 +18,8 @@ from django.conf import settings
 from django.db import close_old_connections, transaction
 
 from . import almacen, historial
-from .models import ActaEntrega, Arrendatario, ArchivoContrato, Contrato, EventoArchivo, PropuestaIA, Propiedad, TramoRenta
+from .models import (ActaEntrega, Arrendatario, ArchivoContrato, Contrato, EventoArchivo, PropuestaIA, Propiedad, RegistroCambio,
+                     TramoRenta)
 
 ARCHIVO_CLAVE = '.clave_anthropic'
 MAX_BYTES = 30 * 1024 * 1024
@@ -395,6 +396,7 @@ def aplicar(prop: PropuestaIA, claves, usuario: str, propiedad_id=None, fechas=N
                     setattr(c, clave, v)
         for clave, v in manual.items():
             setattr(c, clave, v)
+        antes = foto_contrato(c) if c.pk else {'nuevo': True}
         if 'fecha_inicio_cobro' in manual or ('fecha_inicio_cobro' in claves and d.get('fecha_inicio_cobro')):
             c.inicio_cobro_auto = False   # fecha fijada (por el contrato o a mano): no se recalcula sola
         fuente = prop.archivo.nombre
@@ -412,12 +414,125 @@ def aplicar(prop: PropuestaIA, claves, usuario: str, propiedad_id=None, fechas=N
     ahora = datetime.now(timezone.utc)
     prop.contrato, prop.estado, prop.resuelta_por, prop.resuelta_en = c, PropuestaIA.Estado.APLICADA, usuario, ahora
     prop.nota = 'Aplicado: ' + ', '.join(sorted(claves))
+    prop.antes = antes
     prop.save()
     a = prop.archivo
     a.contrato, a.estado, a.revisado_por, a.revisado_en = c, 'R', usuario, ahora
     a.save()
     EventoArchivo.objects.create(archivo=a, tipo='APLICADO', usuario=usuario, detalle=f'propuesta n.º {prop.pk} aplicada a {c.codigo}')
     return c
+
+
+def foto_contrato(c: Contrato) -> dict:
+    """Cómo está el contrato en la base (campos que la IA puede cambiar y calendario de renta), para poder deshacer."""
+    previo = Contrato.objects.get(pk=c.pk)
+    return {'campos': {k: historial._txt(getattr(previo, k)) for k, _, _ in CAMPOS},
+            'documentos_fuente': previo.documentos_fuente,
+            'tramos': [dict(desde=historial._txt(t.desde), hasta=historial._txt(t.hasta), monto=historial._txt(t.monto), unidad=t.unidad,
+                            tipo=t.tipo, fuente=t.fuente, nota=t.nota, inferido=t.inferido) for t in previo.tramos.all()]}
+
+
+def _antes_desde_historial(prop: PropuestaIA) -> dict:
+    """Propuestas aplicadas antes de que se guardara la foto: se arma con el historial de cambios del momento en que se aplicó."""
+    if not (prop.contrato_id and prop.resuelta_en):
+        return {}
+    filas = list(RegistroCambio.objects.filter(contrato_id=prop.contrato_id, origen='IA', usuario=prop.resuelta_por,
+                                               fecha__gte=prop.resuelta_en - timedelta(minutes=2), fecha__lte=prop.resuelta_en)
+                 .order_by('fecha', 'id'))
+    if any(f.objeto == 'Contrato' and f.accion == 'creado' for f in filas):
+        return {'nuevo': True}
+    nombres = {Contrato._meta.get_field(k).verbose_name: k for k, _, _ in CAMPOS}
+    campos = {}
+    for f in filas:
+        if f.objeto == 'Contrato' and f.accion == 'modificado':
+            for nombre, (antes, _) in f.cambios.items():
+                if nombre in nombres:
+                    campos.setdefault(nombres[nombre], antes)
+    borrados = [f.cambios for f in filas if f.objeto == 'Tramo de renta' and f.accion == 'eliminado']
+    if not borrados and not campos:
+        return {}
+    tipo_n = TramoRenta._meta.get_field('tipo').verbose_name
+    inf_n = TramoRenta._meta.get_field('inferido').verbose_name
+    ant = lambda d, k: (d.get(k) or ['', ''])[0]
+    return {'campos': campos, 'desde_historial': True,
+            'tramos': [dict(desde=ant(d, 'desde'), hasta=ant(d, 'hasta'), monto=ant(d, 'monto'), unidad=ant(d, 'unidad') or 'UF',
+                            tipo=ant(d, tipo_n), fuente=ant(d, 'fuente'), nota=ant(d, 'nota'), inferido=ant(d, inf_n) == 'True')
+                       for d in borrados] if 'tramos' in prop.nota else None}
+
+
+def _valor(txt: str, tipo: str):
+    if tipo == 'bool':
+        return txt == 'True'
+    if tipo in ('str', 'choice'):
+        return txt or ''
+    return _convertir(txt, tipo)
+
+
+def plan_deshacer(prop: PropuestaIA) -> dict:
+    """Qué haría «deshacer» con una propuesta aplicada: {error} o {campos: [(etiqueta, hoy, vuelve)], tramos_hoy, tramos_vuelven (textos), antes}."""
+    c = prop.contrato
+    if prop.estado != PropuestaIA.Estado.APLICADA or c is None:
+        return {'error': 'Esta propuesta no está aplicada a un contrato.'}
+    antes = prop.antes or _antes_desde_historial(prop)
+    if antes.get('nuevo'):
+        return {'error': f'Este archivo creó el contrato {c.codigo}: no hay una versión anterior a la que volver. '
+                         'Si el contrato no corresponde, desactívelo en «Editar condiciones».'}
+    if not antes:
+        return {'error': 'No quedó registro de cómo estaba el contrato antes de aplicar este archivo: corrija la renta a mano '
+                         '(Administración › Contratos) o vuelva a leer con la IA el contrato vigente.'}
+    posterior = (PropuestaIA.objects.filter(contrato=c, estado=PropuestaIA.Estado.APLICADA, resuelta_en__gt=prop.resuelta_en)
+                 .exclude(pk=prop.pk).select_related('archivo').first())
+    if posterior:
+        return {'error': f'Después se aplicó «{posterior.archivo.nombre}» al mismo contrato: deshacer este archivo borraría también '
+                         'esos cambios. Revise la renta a mano o vuelva a leer con la IA el contrato vigente.'}
+    hoy = foto_contrato(c)
+    campos = []
+    for clave, etiqueta, tipo in CAMPOS:
+        if clave in antes.get('campos', {}) and antes['campos'][clave] != hoy['campos'][clave]:
+            campo = Contrato._meta.get_field(clave)
+            campos.append((etiqueta, _mostrar(getattr(c, clave), tipo, campo), _mostrar(_valor(antes['campos'][clave], tipo), tipo, campo)))
+    tramos = antes.get('tramos')
+    a_lista = lambda ts: '\n'.join(_fmt_tramos([dict(t, desde=date.fromisoformat(t['desde']), hasta=date.fromisoformat(t['hasta']) if t['hasta'] else None)
+                                      for t in sorted(ts, key=lambda t: t['desde'])])) or '(sin tramos)'
+    return {'antes': antes, 'campos': campos, 'tramos_hoy': a_lista(hoy['tramos']),
+            'tramos_vuelven': a_lista(tramos) if tramos is not None else None}
+
+
+@transaction.atomic
+def deshacer(prop: PropuestaIA, usuario: str) -> Contrato:
+    """Devuelve el contrato a como estaba antes de aplicar la propuesta (p. ej. se borró de la carpeta un anexo temporal)."""
+    plan = plan_deshacer(prop)
+    if plan.get('error'):
+        raise ValueError(plan['error'])
+    antes, c = plan['antes'], prop.contrato
+    with historial.con_origen('deshacer archivo', usuario):
+        for clave, _, tipo in CAMPOS:
+            if clave in antes.get('campos', {}):
+                setattr(c, clave, _valor(antes['campos'][clave], tipo))
+        if 'documentos_fuente' in antes:
+            c.documentos_fuente = antes['documentos_fuente']
+        else:
+            c.documentos_fuente = '; '.join(x.strip() for x in (c.documentos_fuente or '').split(';')
+                                            if x.strip() and x.strip().lower() != prop.archivo.nombre.lower())
+        c.save()
+        if antes.get('tramos') is not None:
+            c.tramos.all().delete()
+            for t in antes['tramos']:
+                TramoRenta.objects.create(contrato=c, desde=date.fromisoformat(t['desde']),
+                                          hasta=date.fromisoformat(t['hasta']) if t['hasta'] else None,
+                                          monto=Decimal(t['monto']) if t['monto'] else None, unidad=t['unidad'], tipo=t['tipo'],
+                                          fuente=t['fuente'], nota=t['nota'], inferido=t['inferido'])
+    prop.estado = PropuestaIA.Estado.DESHECHA
+    prop.nota = f'{prop.nota} · Deshecho por {usuario or "sistema"}'.strip(' ·')
+    prop.save()
+    EventoArchivo.objects.create(archivo=prop.archivo, tipo='DESHECHO', usuario=usuario,
+                                 detalle=f'{c.codigo} volvió a como estaba antes de aplicar la propuesta n.º {prop.pk}')
+    return c
+
+
+def deshacible(archivo) -> PropuestaIA | None:
+    """La última propuesta aplicada de un archivo (la que «Deshacer» revertiría), si hay."""
+    return archivo.propuestas.filter(estado=PropuestaIA.Estado.APLICADA, contrato__isnull=False).order_by('-resuelta_en').first()
 
 
 def descartar(prop: PropuestaIA, usuario: str):

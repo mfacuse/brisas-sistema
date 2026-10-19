@@ -52,6 +52,7 @@ urlpatterns = [
     path('contratos/archivos/leer-pendientes/', va.leer_pendientes_ia, name='leer_pendientes_ia'),
     path('contratos/archivos/<int:pk>/pdf/', va.archivo_abrir, name='archivo_abrir'),
     path('contratos/archivos/<int:pk>/accion/', va.archivo_accion, name='archivo_accion'),
+    path('contratos/archivos/<int:pk>/deshacer/', va.archivo_deshacer, name='archivo_deshacer'),
     path('contratos/propuesta/<int:pk>/', va.propuesta, name='propuesta'),
     path('contratos/propuesta/<int:pk>/accion/', va.propuesta_accion, name='propuesta_accion'),
     path('contratos/<str:codigo>/', v.contrato, name='contrato'),

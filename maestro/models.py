@@ -439,6 +439,7 @@ class PropuestaIA(models.Model):
         ERROR = 'E', 'Error'
         APLICADA = 'A', 'Aplicada'
         DESCARTADA = 'D', 'Descartada'
+        DESHECHA = 'X', 'Aplicada y deshecha'
 
     archivo = models.ForeignKey(ArchivoContrato, on_delete=models.CASCADE, related_name='propuestas')
     contrato = models.ForeignKey(Contrato, null=True, blank=True, on_delete=models.SET_NULL, related_name='propuestas')
@@ -454,6 +455,7 @@ class PropuestaIA(models.Model):
     resuelta_por = models.CharField(max_length=80, blank=True)
     resuelta_en = models.DateTimeField(null=True, blank=True)
     nota = models.TextField(blank=True)
+    antes = models.JSONField(default=dict, blank=True, help_text='cómo estaba el contrato antes de aplicar (para deshacer)')
 
     class Meta:
         ordering = ['-creada']

@@ -5,4 +5,5 @@
 <td class="nowrap">{% if puede_operar and a.estado != 'E' %}<form method="post" action="{% url 'archivo_accion' a.pk %}" class="inline">{% csrf_token %}
 {% if not a.ultima or a.ultima.estado != 'P' %}<button class="btn sm" name="accion" value="ia" {% if not clave %}disabled title="Falta la clave de la IA"{% endif %}>Leer con IA</button>{% endif %}
 {% if a.pendiente %}<button class="btn sm sec" name="accion" value="revisado" title="El contrato del sistema ya está al día con este archivo">Marcar revisado</button>{% endif %}
-{% if a.ignorar %}<button class="btn sm sec" name="accion" value="no_ignorar">No ignorar</button>{% elif not a.contrato %}<button class="btn sm sec" name="accion" value="ignorar" title="No es un contrato de arriendo (p. ej. estatutos o administración)">Ignorar</button>{% endif %}</form>{% endif %}</td></tr>
+{% if a.ignorar %}<button class="btn sm sec" name="accion" value="no_ignorar">No ignorar</button>{% elif not a.contrato %}<button class="btn sm sec" name="accion" value="ignorar" title="No es un contrato de arriendo (p. ej. estatutos o administración)">Ignorar</button>{% endif %}</form>{% endif %}
+{% if puede_operar and a.estado == 'E' and a.aplicada %}<a class="btn sm" href="{% url 'archivo_deshacer' a.pk %}" title="Vuelve el contrato a como estaba antes de aplicar este archivo">Deshacer sus cambios</a>{% endif %}</td></tr>

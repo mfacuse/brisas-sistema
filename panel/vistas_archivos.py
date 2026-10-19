@@ -191,8 +191,10 @@ def archivos(request):
     lista = list(qs)
     for a in lista:
         a.ultima = a.propuestas.all()[0] if a.propuestas.all() else None
+        a.aplicada = next((p for p in a.propuestas.all() if p.estado == 'A' and p.contrato_id), None)
     c.update(pendientes=[a for a in lista if a.pendiente], al_dia=[a for a in lista if a.estado == 'R' and not a.ignorar and not a.pendiente],
              ignorados=[a for a in lista if a.ignorar and a.estado != 'E'], eliminados=[a for a in lista if a.estado == 'E'],
+             eliminados_con_cambios=any(a.estado == 'E' and a.aplicada for a in lista),
              contratos=Contrato.objects.filter(sociedad=soc).order_by('codigo'), clave=ia.clave_configurada(),
              leyendo=any(a.ultima and a.ultima.estado == 'P' for a in lista),
              eventos=EventoArchivo.objects.filter(archivo__sociedad=soc).select_related('archivo')[:30])
@@ -243,6 +245,31 @@ def archivo_accion(request, pk):
 
 
 @requiere_operacion
+def archivo_deshacer(request, pk):
+    """Vuelve el contrato a como estaba antes de aplicar este archivo (p. ej. se borró de la carpeta un anexo temporal)."""
+    a = get_object_or_404(ArchivoContrato.objects.select_related('sociedad'), pk=pk)
+    p = ia.deshacible(a)
+    volver = f'{reverse("archivos")}?sociedad={a.sociedad_id}'
+    if p is None:
+        messages.error(request, f'«{a.nombre}» no tiene cambios aplicados a un contrato.')
+        return redirect(volver)
+    if request.method == 'POST':
+        try:
+            ct = ia.deshacer(p, _usuario(request))
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect(volver)
+        messages.success(request, f'{ct.codigo} volvió a como estaba antes de «{a.nombre}». Quedó en el historial. '
+                                  'Ahora vaya a Facturación y use «Regenerar borradores» (si el documento ya estaba aprobado, '
+                                  'primero «Volver aprobados a borrador»).')
+        return redirect('contrato', codigo=ct.codigo)
+    c = ctx_base(request)
+    c['sociedad'] = a.sociedad
+    c.update(a=a, p=p, plan=ia.plan_deshacer(p))
+    return render(request, 'panel/archivo_deshacer.html', c)
+
+
+@requiere_operacion
 @require_POST
 def leer_pendientes_ia(request):
     soc, _ = _sociedad(request)
@@ -261,7 +288,7 @@ def propuesta(request, pk):
     p = get_object_or_404(PropuestaIA.objects.select_related('archivo__sociedad', 'contrato__arrendatario'), pk=pk)
     c = ctx_base(request)
     c['sociedad'] = p.archivo.sociedad
-    c.update(p=p, filas=ia.diferencias(p) if p.estado in ('L', 'A', 'D') else [], d=p.datos,
+    c.update(p=p, filas=ia.diferencias(p) if p.estado in ('L', 'A', 'D', 'X') else [], d=p.datos,
              contratos=Contrato.objects.filter(sociedad=p.archivo.sociedad).order_by('codigo'),
              propiedades=Propiedad.objects.filter(sociedad=p.archivo.sociedad))
     return render(request, 'panel/propuesta.html', c)

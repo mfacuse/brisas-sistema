@@ -1,0 +1,13 @@
+{% extends 'panel/base.html' %}{% block titulo %}Deshacer · {{ a.nombre }}{% endblock %}
+{% block contenido %}<p class="small"><a href="{% url 'archivos' %}?sociedad={{ a.sociedad_id }}">← Archivos de contratos</a></p>
+<h1>Deshacer los cambios de un archivo</h1>
+<p class="sub">📄 {{ a.nombre }}{% if a.estado == 'E' %} · <span class="badge b-bad">ya no está en la carpeta</span>{% endif %} · aplicado a <a href="{% url 'contrato' p.contrato.codigo %}">{{ p.contrato.codigo }} {{ p.contrato.nombre_fantasia }}</a> por {{ p.resuelta_por|default:"—" }} el {{ p.resuelta_en|date:"d-m-Y H:i" }} (<a href="{% url 'propuesta' p.pk %}">ver propuesta</a>)</p>
+{% if plan.error %}<div class="warnbox">{{ plan.error }}</div>
+{% else %}<p>El contrato vuelve a como estaba <b>antes</b> de aplicar este archivo{% if plan.antes.desde_historial %} (reconstruido con el historial de cambios){% endif %}:</p>
+<div class="tw"><table><tr><th>Dato</th><th>Hoy en el sistema</th><th>Vuelve a</th></tr>
+{% if plan.tramos_vuelven is not None %}<tr class="cambia"><td><b>Calendario de renta</b></td><td class="small pre">{{ plan.tramos_hoy }}</td><td class="small pre">{{ plan.tramos_vuelven }}</td></tr>{% endif %}
+{% for etiqueta, hoy, vuelve in plan.campos %}<tr class="cambia"><td><b>{{ etiqueta }}</b></td><td class="small pre">{{ hoy }}</td><td class="small pre">{{ vuelve }}</td></tr>{% endfor %}
+{% if plan.tramos_vuelven is None and not plan.campos %}<tr><td colspan="3" class="muted small">No hay diferencias: el contrato ya está como antes de este archivo.</td></tr>{% endif %}</table></div>
+<form method="post">{% csrf_token %}<div class="toolbar"><button class="btn" onclick="return confirm('¿Volver el contrato a como estaba antes de este archivo?')">Deshacer</button><a class="btn sec" href="{% url 'archivos' %}?sociedad={{ a.sociedad_id }}">Cancelar</a></div></form>
+<p class="small muted">Queda en el historial del contrato. Después, en Facturación, use «Regenerar borradores» para que el documento del mes tome la renta corregida.</p>{% endif %}
+{% endblock %}
