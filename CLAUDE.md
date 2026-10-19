@@ -39,6 +39,8 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
 - Roles: `crear_roles` (grupos Administrador, Operación y Contabilidad). Respaldo: `respaldar_bd`.
 - Carpetas: `revisar_carpetas` (PDF de contratos nuevos/cambiados y facturas emitidas; corre al encender).
+- Sesiones en la nube (app de Claude en iPad/iPhone, claude.ai/code; entorno «Sistema Facturacion»): `.claude/hooks/preparar_nube.sh`
+  instala `requirements.txt` al iniciar (solo si CLAUDE_CODE_REMOTE=true). Allí no hay Google Drive ni base de trabajo: pedir capturas o archivos.
 - Probar con una copia de la base sin tocar la de trabajo: `DATABASE_URL=sqlite:////ruta/copia.sqlite3 python manage.py ...`
 
 ## Nube (en preparación, 2026-10-14): Render, ver `docs/nube-render.md`
