@@ -62,6 +62,7 @@ urlpatterns = [
     path('cargas/venta/', v.guardar_venta, name='guardar_venta'),
     path('cargas/otro/', v.otro_manual, name='otro_manual'),
     path('cargas/planilla/<int:pk>/', v.planilla, name='planilla'),
+    path('cargas/planilla/<int:pk>/deshacer/', v.carga_deshacer, name='carga_deshacer'),
     path('cargas/<int:pk>/borrar/', v.borrar_cargo, name='borrar_cargo'),
     path('medidores/', v.medidores, name='medidores'),
     path('medidores/<int:pk>/', v.medidor_accion, name='medidor_accion'),

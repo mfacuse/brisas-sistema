@@ -625,9 +625,61 @@ def registrar_acta(acta: ActaEntrega, usuario: str):
         raise ValueError('Falta la fecha de entrega del acta.')
     with transaction.atomic(), historial.con_origen('panel', usuario):
         c = acta.contrato
+        if acta.estado != ActaEntrega.Estado.REGISTRADA or not acta.antes:
+            acta.antes = {'contrato_id': c.pk, **{k: historial._txt(getattr(c, k)) for k in CAMPOS_ACTA}}
         c.fecha_entrega = acta.fecha_entrega
         c.save()
         acta.estado = ActaEntrega.Estado.REGISTRADA
+        acta.save()
+    return c
+
+
+CAMPOS_ACTA = ('fecha_entrega', 'fecha_inicio_cobro', 'inicio_cobro_auto')
+
+
+def plan_deshacer_acta(acta: ActaEntrega) -> dict:
+    """{error} o {contrato, hoy, vuelve}: la fecha de entrega (y el inicio de cobro) que tenía el contrato antes de registrar el acta."""
+    if acta.estado != ActaEntrega.Estado.REGISTRADA or not acta.contrato_id:
+        return {'error': 'El acta no está registrada en un contrato.'}
+    antes = dict(acta.antes or {})
+    if antes and antes.get('contrato_id') != acta.contrato_id:
+        return {'error': 'El acta se asoció a otro contrato después de registrarla: corrija la fecha de entrega a mano en «Editar condiciones».'}
+    if not antes:   # registrada antes de que se guardara la foto: se busca en el historial
+        nombre = Contrato._meta.get_field('fecha_entrega').verbose_name
+        r = next((r for r in RegistroCambio.objects.filter(contrato_id=acta.contrato_id, objeto='Contrato', accion='modificado')
+                  if (r.cambios.get(nombre) or ['', ''])[1] == historial._txt(acta.fecha_entrega)), None)
+        if r is None:
+            return {'error': 'No quedó registro de la fecha de entrega anterior: corríjala a mano en «Editar condiciones».'}
+        ini = Contrato._meta.get_field('fecha_inicio_cobro').verbose_name
+        antes = {'fecha_entrega': r.cambios[nombre][0], 'desde_historial': True}
+        if ini in r.cambios:
+            antes['fecha_inicio_cobro'] = r.cambios[ini][0]
+    c = acta.contrato
+    if c.fecha_entrega != acta.fecha_entrega:
+        return {'error': f'La fecha de entrega de {c.codigo} cambió después de registrar el acta ({_mostrar(c.fecha_entrega, "date")}): '
+                         'corríjala a mano en «Editar condiciones».'}
+    fecha = lambda t: date.fromisoformat(t) if t else None
+    return {'contrato': c, 'antes': antes,
+            'hoy': [('Fecha de entrega', _mostrar(c.fecha_entrega, 'date')), ('Inicio de cobro', _mostrar(c.fecha_inicio_cobro, 'date'))],
+            'vuelve': [('Fecha de entrega', _mostrar(fecha(antes.get('fecha_entrega')), 'date')),
+                       ('Inicio de cobro', _mostrar(fecha(antes['fecha_inicio_cobro']), 'date') if 'fecha_inicio_cobro' in antes
+                        else 'se calcula solo con la regla del contrato')]}
+
+
+def deshacer_acta(acta: ActaEntrega, usuario: str) -> Contrato:
+    """Devuelve al contrato la fecha de entrega (e inicio de cobro) que tenía antes de registrar el acta; el acta queda «leída»."""
+    plan = plan_deshacer_acta(acta)
+    if plan.get('error'):
+        raise ValueError(plan['error'])
+    antes, c = plan['antes'], plan['contrato']
+    with transaction.atomic(), historial.con_origen('deshacer acta', usuario):
+        c.fecha_entrega = date.fromisoformat(antes['fecha_entrega']) if antes.get('fecha_entrega') else None
+        if 'inicio_cobro_auto' in antes:
+            c.inicio_cobro_auto = antes['inicio_cobro_auto'] == 'True'
+        if 'fecha_inicio_cobro' in antes:   # si es automática, save() la vuelve a calcular cuando se pueda
+            c.fecha_inicio_cobro = date.fromisoformat(antes['fecha_inicio_cobro']) if antes['fecha_inicio_cobro'] else None
+        c.save()
+        acta.estado, acta.antes = ActaEntrega.Estado.LEIDA, {}
         acta.save()
     return c
 

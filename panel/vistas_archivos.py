@@ -504,6 +504,15 @@ def acta(request, pk):
             except ia.SinClave as e:
                 messages.error(request, str(e))
             return redirect('acta', pk=a.pk)
+        if accion == 'deshacer':
+            try:
+                c = ia.deshacer_acta(a, _usuario(request))
+                messages.success(request, f'{c.codigo} volvió a la fecha de entrega que tenía antes del acta '
+                                          f'({c.fecha_entrega:%d-%m-%Y}).' if c.fecha_entrega else f'{c.codigo} quedó sin fecha de entrega, como antes del acta.')
+                messages.info(request, 'En Facturación use «Regenerar borradores» para que el documento del mes tome el cambio.')
+            except ValueError as e:
+                messages.error(request, str(e))
+            return redirect('acta', pk=a.pk)
         f = ActaForm(request.POST, instance=a, sociedad=a.sociedad)
         if f.is_valid():
             f.save()
@@ -522,7 +531,7 @@ def acta(request, pk):
         f = ActaForm(instance=a, sociedad=a.sociedad)
     c = ctx_base(request)
     c['sociedad'] = a.sociedad
-    c.update(a=a, form=f, d=a.datos, clave=ia.clave_configurada())
+    c.update(a=a, form=f, d=a.datos, clave=ia.clave_configurada(), deshacer=ia.plan_deshacer_acta(a) if a.estado == 'R' else None)
     return render(request, 'panel/acta.html', c)
 
 

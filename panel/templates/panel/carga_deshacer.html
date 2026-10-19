@@ -1,0 +1,13 @@
+{% extends 'panel/base.html' %}{% load formato %}{% block titulo %}Deshacer carga · {{ carga.archivo }}{% endblock %}
+{% block contenido %}<p class="small"><a href="{% url 'cargas' %}?sociedad={{ carga.sociedad_id }}&periodo={{ carga.periodo_cobro|date:'Y-m' }}">← Cargas</a></p>
+<h1>Deshacer una carga</h1>
+<p class="sub">{{ servicio }} · «{{ carga.archivo }}»{% if carga.servicio != 'OTRO' %} · consumo de {{ carga.periodo_consumo|mes }}, factura de {{ carga.periodo_cobro|mes }}{% endif %} · subida por {{ carga.subida_por|default:"—" }} el {{ carga.creada|date:"d-m-Y H:i" }}</p>
+{% if plan.error %}<div class="warnbox">{{ plan.error }}</div>
+{% else %}<p>Se <b>quitan</b> los {{ plan.quitar|length }} cargos que dejó este archivo ({{ plan.total_quitar|clp }}){% if plan.vuelven %} y <b>vuelven</b> los {{ plan.vuelven|length }} que había reemplazado ({{ plan.total_vuelven|clp }}){% endif %}. Los medidores que se confirmaron se conservan.</p>
+{% if plan.aprobados %}<div class="warnbox">⚠ {{ plan.aprobados }} documentos afectados ya están aprobados o exportados: después de deshacer, en Facturación use «Volver aprobados a borrador» y «Regenerar borradores».</div>{% endif %}
+<div class="tw"><table><tr><th></th><th>Contrato</th><th>Medidor / concepto</th><th>Factura de</th><th class="r">Neto</th></tr>
+{% for x in plan.quitar %}<tr><td><span class="badge b-bad">se quita</span></td><td>{{ x.contrato.codigo }} <span class="small muted">{{ x.contrato.nombre_fantasia }}</span></td><td class="small">{{ x.medidor }}{{ x.concepto }}</td><td class="small">{{ x.periodo_cobro|mes }}</td><td class="r">{{ x.neto|clp }}</td></tr>{% endfor %}
+{% for d in plan.vuelven %}<tr><td><span class="badge b-ok">vuelve</span></td><td>{{ d.contrato.codigo|default:"(contrato borrado)" }} <span class="small muted">{{ d.contrato.nombre_fantasia }}</span></td><td class="small">{{ d.medidor }}{{ d.concepto }}</td><td class="small">{{ d.cobro|mes }}</td><td class="r">{{ d.neto|clp }}</td></tr>{% endfor %}
+{% if not plan.quitar and not plan.vuelven %}<tr><td colspan="5" class="muted small">No quedan cargos de este archivo (quizás se borraron a mano).</td></tr>{% endif %}</table></div>
+<form method="post">{% csrf_token %}<div class="toolbar"><button class="btn" onclick="return confirm('¿Deshacer esta carga?')">Deshacer la carga</button><a class="btn sec" href="{% url 'cargas' %}?sociedad={{ carga.sociedad_id }}&periodo={{ carga.periodo_cobro|date:'Y-m' }}">Cancelar</a></div></form>{% endif %}
+{% endblock %}

@@ -33,7 +33,7 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
 - `.clave_secreta` es la llave de seguridad de esta instalación: no mostrarla, no copiarla ni subirla a ningún repositorio.
 
 ## Comandos (primero: `source ~/Brisas_python/bin/activate`, y estar en la carpeta del sistema)
-- Pruebas: `python manage.py test` (140 pruebas; deben pasar antes de dar algo por terminado).
+- Pruebas: `python manage.py test` (149 pruebas; deben pasar antes de dar algo por terminado).
 - Del mes: `cargar_indicadores`, `cargar_consumos`, `generar_borradores AAAA-MM`, `aprobar_documentos AAAA-MM`, `exportar_excel AAAA-MM`, `exportar_bsoft AAAA-MM`, `alertas`.
   Los de facturación aceptan `--sociedad`. Ejemplos en `README.md`.
 - Datos de prueba: `datos_prueba` y `quitar_datos_prueba` (todo queda con origen PRUEBA; nunca mezclar con UF/IPC reales).
@@ -66,7 +66,13 @@ Son unos 48 contratos y unos 70 documentos al mes. Panel web propio, en español
   Todos los PDF nuevos o cambiados se leen solos con la IA (`ia.leer_pendientes`: al revisar la carpeta y en la tarea diaria; Matías,
   2026-10-15, porque hay acuerdos de cambio de renta). Un archivo con propuesta sin aplicar ni descartar sigue «pendiente» y no se puede marcar revisado. Borrar un PDF de la carpeta **no** deshace lo que se aplicó
   al contrato: en «Ya no están en la carpeta» el botón «Deshacer sus cambios» (`ia.deshacer`) lo vuelve a como estaba antes de aplicarlo
-  (foto en `PropuestaIA.antes`; si es antigua, se arma con el historial). No deshace si después se aplicó otro archivo ni si el archivo creó el contrato. `.clave_anthropic` es privada, como `.clave_secreta`.
+  (foto en `PropuestaIA.antes`; si es antigua, se arma con el historial). No deshace si después se aplicó otro archivo ni si el archivo creó el contrato.
+- Deshacer lo que dejó un archivo (Matías, 2026-10-19: «para todos los archivos y todos los conceptos»), siempre con pantalla de confirmación:
+  planillas de luz, gas, agua, gastos comunes y archivos de «otros» → Cargas › «Archivos cargados» › «Deshacer» (`cargas.deshacer`: quita sus
+  cargos y devuelve los que reemplazó, guardados en `CargaPlanilla.antes`; `ConsumoServicio.carga` une cada cargo con su archivo; si después
+  se cargó otra planilla del mismo servicio y mes, hay que deshacer esa primero; los medidores confirmados se conservan). Actas registradas →
+  «Deshacer el registro» en el acta (`ia.deshacer_acta`, foto en `ActaEntrega.antes`). Facturas emitidas cuyo PDF ya no está: se desvincula
+  el folio y se quitan solas al revisar la carpeta. Alertas avisa los PDF de contratos y actas borrados con cambios aún aplicados. `.clave_anthropic` es privada, como `.clave_secreta`.
 - `indicadores/`: UF e IPC oficiales. Banco Central (API BDE) si existe `.token_bcentral` (privado, como `.clave_secreta`); si no, o si falla, SII
   (publica la UF y el IPC del INE, sin registro). mindicador.cl se dejó de usar el 2026-10-13: no respondía y hacía lento el encendido.
 - `facturacion/motor.py`: cálculo de rentas, **puro** (no toca la base de datos). `servicios.py` lo conecta con la base (borradores, aprobación, alertas).

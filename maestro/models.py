@@ -496,6 +496,7 @@ class ActaEntrega(models.Model):
     datos = models.JSONField(default=dict, blank=True)
     error = models.TextField(blank=True)
     costo_usd = models.DecimalField(max_digits=8, decimal_places=4, default=0)
+    antes = models.JSONField(default=dict, blank=True, help_text='fechas del contrato antes de registrar el acta (para deshacer)')
 
     class Meta:
         ordering = ['-subida_en']

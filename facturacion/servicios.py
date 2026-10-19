@@ -211,5 +211,22 @@ def alertas_vigentes(hoy: date, horizonte=120, sociedad=None):
     for c in qs:
         for nivel, texto in motor.alertas(a_contrato_d(c), c.plazo_meses, c.prorroga_meses, c.fin_pactado, c.aviso_dias, hoy, horizonte):
             out.append((c.codigo, c.nombre_fantasia, nivel, texto))
+    out += archivos_borrados_con_cambios(sociedad)
     orden = {'ALTA': 0, 'MEDIA': 1, 'INFO': 2}
     return sorted(out, key=lambda x: (orden[x[2]], x[0]))
+
+
+def archivos_borrados_con_cambios(sociedad=None):
+    """PDF de contratos y actas que ya no están en su carpeta, pero lo que se aplicó desde ellos sigue en el contrato."""
+    from maestro.models import ActaEntrega, PropuestaIA
+    props = PropuestaIA.objects.filter(estado='A', archivo__estado='E', contrato__isnull=False).select_related('archivo', 'contrato')
+    actas = ActaEntrega.objects.filter(estado='R', ya_no_esta=True, contrato__isnull=False).select_related('contrato')
+    if sociedad:
+        props, actas = props.filter(contrato__sociedad=sociedad), actas.filter(contrato__sociedad=sociedad)
+    out = [(p.contrato.codigo, p.contrato.nombre_fantasia, 'ALTA',
+            f'«{p.archivo.nombre}» ya no está en la carpeta, pero sus cambios siguen en el contrato. Si no corresponde: '
+            'Contratos › Archivos de contratos › «Deshacer sus cambios».') for p in props]
+    out += [(a.contrato.codigo, a.contrato.nombre_fantasia, 'ALTA',
+             f'El acta «{a.nombre}» ya no está en la carpeta, pero su fecha de entrega sigue en el contrato. Si no corresponde: '
+             'ábrala en Actas de entrega › «Deshacer el registro».') for a in actas]
+    return out

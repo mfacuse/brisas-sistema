@@ -255,6 +255,13 @@ class IATest(Base):
         p.refresh_from_db()
         self.assertIn('creó el contrato', ia.plan_deshacer(p)['error'])
 
+    def test_alerta_del_pdf_borrado_con_cambios_aplicados(self):
+        from facturacion import servicios
+        p = self._aplicar_y_borrar_el_archivo()
+        self.assertTrue(any('Contrato Local 1 Ale Anexo.pdf' in t for *_, t in servicios.alertas_vigentes(date(2026, 10, 19), sociedad=self.soc)))
+        ia.deshacer(p, 'matias')
+        self.assertEqual(servicios.archivos_borrados_con_cambios(self.soc), [])
+
     def test_pantalla_deshacer(self):
         p = self._aplicar_y_borrar_el_archivo()
         Group.objects.get_or_create(name='Operación')
@@ -522,6 +529,54 @@ class ActasTest(Base):
         os.remove(actas / 'foto acta.jpg')
         self.assertIn('1 ya no están', carpetas.revisar_actas(self.soc))
         self.assertTrue(ActaEntrega.objects.get(nombre='foto acta.jpg').ya_no_esta)
+
+
+    def _acta_registrada(self):
+        from .models import ActaEntrega
+        actas = self.raiz / 'Actas'
+        _pdf(actas / 'Acta Local 1.pdf')
+        self.soc.carpeta_actas = str(actas)
+        self.soc.save()
+        carpetas.revisar_actas(self.soc)
+        a = ActaEntrega.objects.get()
+        a.contrato, a.fecha_entrega, a.estado = self.c1, date(2026, 9, 2), 'L'
+        a.save()
+        ia.registrar_acta(a, 'op')
+        self.c1.refresh_from_db()
+        self.assertEqual((self.c1.fecha_entrega, self.c1.fecha_inicio_cobro), (date(2026, 9, 2), date(2026, 11, 1)))
+        return a
+
+    def test_deshacer_el_registro_de_un_acta_borrada(self):
+        from facturacion import servicios
+        a = self._acta_registrada()
+        os.remove(self.raiz / 'Actas' / 'Acta Local 1.pdf')
+        carpetas.revisar_actas(self.soc)
+        alertas = [t for *_, t in servicios.archivos_borrados_con_cambios(self.soc)]
+        self.assertTrue(any('Acta Local 1.pdf' in t for t in alertas))
+        self.client.force_login(self.op)
+        self.assertContains(self.client.get(f'/contratos/actas/{a.pk}/'), 'Deshacer el registro')
+        self.client.post(f'/contratos/actas/{a.pk}/', {'accion': 'deshacer'})
+        self.c1.refresh_from_db()
+        a.refresh_from_db()
+        self.assertEqual((a.estado, self.c1.fecha_entrega, self.c1.fecha_inicio_cobro), ('L', None, None))
+        self.assertTrue(RegistroCambio.objects.filter(contrato=self.c1, origen='deshacer acta').exists())
+        self.assertEqual(servicios.archivos_borrados_con_cambios(self.soc), [])
+
+    def test_deshacer_un_acta_registrada_antes_de_este_cambio(self):
+        from .models import ActaEntrega
+        a = self._acta_registrada()
+        ActaEntrega.objects.filter(pk=a.pk).update(antes={})
+        a.refresh_from_db()
+        self.assertTrue(ia.plan_deshacer_acta(a)['antes']['desde_historial'])
+        ia.deshacer_acta(a, 'op')
+        self.c1.refresh_from_db()
+        self.assertIsNone(self.c1.fecha_entrega)
+
+    def test_no_se_deshace_si_la_fecha_cambio_despues(self):
+        a = self._acta_registrada()
+        self.c1.fecha_entrega = date(2026, 9, 10)
+        self.c1.save()
+        self.assertIn('cambió después', ia.plan_deshacer_acta(a)['error'])
 
 
 # ------------------------------------------------------------------ plano de locales

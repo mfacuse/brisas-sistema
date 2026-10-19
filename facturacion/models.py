@@ -68,6 +68,8 @@ class ConsumoServicio(models.Model):
     detalle = models.CharField(max_length=200, blank=True)
     neto = models.DecimalField(max_digits=14, decimal_places=0)
     origen_archivo = models.CharField(max_length=120, blank=True)
+    carga = models.ForeignKey('CargaPlanilla', null=True, blank=True, on_delete=models.SET_NULL, related_name='cargos',
+                              help_text='planilla o archivo del que salió (para poder deshacer la carga)')
 
     class Meta:
         ordering = ['-periodo_cobro', 'contrato', 'servicio']
@@ -207,12 +209,14 @@ class FacturaEmitida(models.Model):
 
 
 class CargaPlanilla(models.Model):
-    """Planilla de luz o gas leída y esperando que alguien confirme a qué contrato va cada fila (con ayuda de la IA)."""
+    """Planilla de luz, gas, agua o gastos comunes leída y esperando que alguien confirme a qué contrato va cada fila (con ayuda
+    de la IA); también registra los archivos de «otros cargos» (servicio OTRO). Una carga confirmada se puede deshacer."""
     class Estado(models.TextChoices):
         ASIGNANDO = 'P', 'La IA está asignando'
         REVISAR = 'L', 'Lista para revisar'
         CARGADA = 'C', 'Cargada'
         DESCARTADA = 'D', 'Descartada'
+        DESHECHA = 'X', 'Cargada y deshecha'
 
     sociedad = models.ForeignKey('maestro.Sociedad', on_delete=models.PROTECT, related_name='cargas_planilla')
     servicio = models.CharField(max_length=4)
@@ -226,6 +230,8 @@ class CargaPlanilla(models.Model):
     subida_por = models.CharField(max_length=80, blank=True)
     creada = models.DateTimeField(auto_now_add=True)
     resultado = models.TextField(blank=True)
+    antes = models.JSONField(default=list, blank=True, help_text='cargos que esta carga reemplazó (vuelven si se deshace)')
+    cargada_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-creada']
