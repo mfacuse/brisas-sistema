@@ -11,4 +11,8 @@
 <button class="btn" name="accion" value="registrar" title="Guarda y pasa la fecha de entrega al contrato">Guardar y registrar la entrega en el contrato</button>
 {% if a.estado != 'P' %}<button class="btn sec" name="accion" value="ia" formnovalidate {% if not clave %}disabled title="Falta la clave de la IA"{% endif %}>{% if a.datos %}Volver a leer con IA{% else %}Leer con IA{% endif %}</button>{% endif %}</div>
 <p class="small muted">«Registrar» copia la fecha de entrega al contrato (queda en su historial) y, si el contrato cobra desde la entrega, calcula el inicio de cobro.</p>{% endif %}</form>
+{% if deshacer and puede_operar %}<div class="card" style="margin-top:12px"><b>Deshacer el registro</b>{% if a.ya_no_esta %} <span class="badge b-bad">el archivo ya no está en la carpeta</span>{% endif %}
+<p class="small muted">Si el acta no corresponde, el contrato vuelve a como estaba antes de registrarla{% if deshacer.antes.desde_historial %} (según el historial de cambios){% endif %}. Borrar el archivo no lo deshace solo.</p>
+{% if deshacer.error %}<div class="warnbox">{{ deshacer.error }}</div>{% else %}<div class="tw"><table><tr><th>Dato de {{ deshacer.contrato.codigo }}</th><th>Hoy</th><th>Vuelve a</th></tr>{% for h in deshacer.hoy %}{% with v=deshacer.vuelve %}<tr><td>{{ h.0 }}</td><td>{{ h.1 }}</td><td>{% for x in v %}{% if x.0 == h.0 %}{{ x.1 }}{% endif %}{% endfor %}</td></tr>{% endwith %}{% endfor %}</table></div>
+<form method="post">{% csrf_token %}<button class="btn sec" name="accion" value="deshacer" onclick="return confirm('¿Volver el contrato a como estaba antes de esta acta?')">Deshacer el registro</button></form>{% endif %}</div>{% endif %}
 {% endblock %}

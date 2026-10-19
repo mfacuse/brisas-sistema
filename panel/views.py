@@ -8,6 +8,7 @@ from decimal import Decimal as D, InvalidOperation
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Count, Prefetch, Q, Sum
 from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -304,6 +305,7 @@ def cargas_vista(request):
         ('agua', 'Agua', 'Planilla mensual de agua (.xlsx o .xls): una fila por local con su monto neto (y, si la trae, el consumo en m³). Asignación por medidor + IA, con revisión.'),
         ('gastos_comunes', 'Gastos comunes', 'Planilla mensual de gastos comunes (.xlsx o .xls): una fila por local o arrendatario con su monto neto. Asignación automática + IA, con revisión.')]
     c.update(planillas=CargaPlanilla.objects.filter(sociedad=soc, estado__in=('P', 'L')),
+             cargas_hechas=CargaPlanilla.objects.filter(sociedad=soc, periodo_cobro=p, estado__in=('C', 'X')),
              contratos_soc=Contrato.objects.filter(sociedad=soc, activo=True).order_by('codigo'))
     r = request.session.pop('resultado_carga', None)
     if r:
@@ -323,8 +325,14 @@ def cargar_archivo(request):
     ruta = _guardar_tmp(f)
     try:
         if tipo == 'otros':
-            res = cargas.cargar_otros(lectores.leer_otros(ruta), f.name)
-            info = f'{res.cargados} cargos "otros" cargados por ${motor.fmt_clp(int(res.total))}.'
+            with transaction.atomic():
+                carga = CargaPlanilla.objects.create(sociedad=soc, servicio='OTRO', archivo=f.name[:255], periodo_consumo=p, periodo_cobro=p,
+                                                     estado=CargaPlanilla.Estado.CARGADA, subida_por=request.user.get_username(),
+                                                     cargada_en=timezone.now())
+                res = cargas.cargar_otros(lectores.leer_otros(ruta), f.name, carga=carga)
+                info = f'{res.cargados} cargos "otros" cargados por ${motor.fmt_clp(int(res.total))}.'
+                carga.resultado = f'{res.cargados} cargos por ${motor.fmt_clp(int(res.total))} · cargado por {request.user.get_username()}'
+                carga.save()
         else:
             a, m = (request.POST.get('consumo') or '').split('-')
             consumo = date(int(a), int(m), 1)
@@ -524,6 +532,30 @@ def planilla(request, pk):
              n_ia=sum(d['fuente'] == 'IA' for d in filas), n_conf=sum(d['fuente'] == 'medidor confirmado' for d in filas),
              n_sin=sum(not d['contrato'] and d['neto_int'] != 0 for d in filas), total=sum(d['neto_int'] for d in filas))
     return render(request, 'panel/planilla.html', c)
+
+
+@requiere_operacion
+def carga_deshacer(request, pk):
+    """Quita los cargos que dejó una planilla (luz, gas, agua, gastos comunes u «otros») y devuelve los que había reemplazado."""
+    carga = get_object_or_404(CargaPlanilla.objects.select_related('sociedad'), pk=pk)
+    volver = f'/cargas/?sociedad={carga.sociedad_id}&periodo={carga.periodo_cobro:%Y-%m}'
+    if request.method == 'POST':
+        try:
+            r = cargas.deshacer(carga, request.user.get_username())
+        except ValueError as e:
+            messages.error(request, str(e))
+            return redirect(volver)
+        messages.success(request, f'Carga «{carga.archivo}» deshecha: se quitaron {len(r["quitar"])} cargos'
+                                  + (f' y volvieron {r["vueltos"]} de la carga anterior.' if r['vueltos'] else '.')
+                                  + ' En Facturación use «Regenerar borradores».')
+        if r['aprobados']:
+            messages.warning(request, f'{r["aprobados"]} documentos afectados ya estaban aprobados o exportados: en Facturación use '
+                                      '«Volver aprobados a borrador» y luego «Regenerar borradores».')
+        return redirect(volver)
+    c = ctx_base(request, periodo=carga.periodo_cobro)
+    c['sociedad'] = carga.sociedad
+    c.update(carga=carga, plan=cargas.plan_deshacer(carga), servicio=NOMBRE_SERVICIO.get(carga.servicio, 'Otros cargos'))
+    return render(request, 'panel/carga_deshacer.html', c)
 
 
 @requiere_operacion

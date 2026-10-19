@@ -194,6 +194,92 @@ class IATest(Base):
         with self.assertRaises(ValueError):
             ia.aplicar(p, ['tipo_documento'], 'matias')  # ya aplicada
 
+    def _aplicar_y_borrar_el_archivo(self):
+        p = ia.ejecutar(self.p.pk, cliente=ClienteFalso())
+        ia.aplicar(p, ['tipo_documento', 'tramos'], 'matias')
+        (self.carpeta / 'Contrato Local 1 Ale Anexo.pdf').unlink()
+        carpetas.revisar(self.soc)
+        self.archivo.refresh_from_db()
+        self.assertEqual(self.archivo.estado, 'E')
+        self.c1.refresh_from_db()
+        self.assertEqual(self.c1.tramos.count(), 2)   # borrar el archivo no cambia el contrato
+        p.refresh_from_db()
+        return p
+
+    def test_deshacer_un_archivo_borrado_devuelve_la_renta_anterior(self):
+        p = self._aplicar_y_borrar_el_archivo()
+        self.assertEqual(ia.deshacible(self.archivo), p)
+        plan = ia.plan_deshacer(p)
+        self.assertEqual(plan['tramos_vuelven'], '01-01-2025 → sin término: 27 UF')
+        ia.deshacer(p, 'matias')
+        self.c1.refresh_from_db()
+        self.assertEqual([(t.desde, t.hasta, t.monto) for t in self.c1.tramos.all()], [(date(2025, 1, 1), None, D('27'))])
+        self.assertEqual(self.c1.tipo_documento, 'FA')
+        self.assertNotIn('Contrato Local 1 Ale Anexo.pdf', self.c1.documentos_fuente)   # vuelve la lista de fuentes anterior
+        p.refresh_from_db()
+        self.assertEqual(p.estado, 'X')
+        self.assertIsNone(ia.deshacible(self.archivo))
+        self.assertTrue(RegistroCambio.objects.filter(contrato=self.c1, origen='deshacer archivo', usuario='matias').exists())
+        with self.assertRaises(ValueError):
+            ia.deshacer(p, 'matias')   # ya deshecha
+
+    def test_deshacer_lo_aplicado_antes_de_esta_version_usa_el_historial(self):
+        p = self._aplicar_y_borrar_el_archivo()
+        PropuestaIA.objects.filter(pk=p.pk).update(antes={})   # propuestas aplicadas antes de guardar la foto
+        p.refresh_from_db()
+        self.assertTrue(ia.plan_deshacer(p)['antes']['desde_historial'])
+        ia.deshacer(p, 'matias')
+        self.c1.refresh_from_db()
+        self.assertEqual([(t.desde, t.monto, t.unidad) for t in self.c1.tramos.all()], [(date(2025, 1, 1), D('27'), 'UF')])
+        self.assertEqual(self.c1.tipo_documento, 'FA')
+
+    def test_no_se_deshace_si_despues_se_aplico_otro_archivo(self):
+        p = self._aplicar_y_borrar_el_archivo()
+        _pdf(self.carpeta / 'Contrato Local 1 Ale Anexo 2.pdf')
+        carpetas.revisar(self.soc)
+        p2 = PropuestaIA.objects.create(archivo=ArchivoContrato.objects.get(nombre='Contrato Local 1 Ale Anexo 2.pdf'), contrato=self.c1)
+        ia.aplicar(ia.ejecutar(p2.pk, cliente=ClienteFalso()), ['tramos'], 'matias')
+        self.assertIn('Anexo 2.pdf', ia.plan_deshacer(p)['error'])
+        with self.assertRaises(ValueError):
+            ia.deshacer(p, 'matias')
+
+    def test_no_se_deshace_un_archivo_que_creo_el_contrato(self):
+        datos = dict(RESPUESTA, contrato_existente_codigo='', arrendatario_razon_social='Nueva Ltda', arrendatario_rut='22.222.222-2',
+                     inicio_vigencia='2026-11-01')
+        self.p.contrato = None
+        self.p.save()
+        p = ia.ejecutar(self.p.pk, cliente=ClienteFalso(datos))
+        ia.aplicar(p, ['tramos'], 'matias', propiedad_id=self.prop.pk)
+        self.assertIn('creó el contrato', ia.plan_deshacer(p)['error'])
+        PropuestaIA.objects.filter(pk=p.pk).update(antes={})
+        p.refresh_from_db()
+        self.assertIn('creó el contrato', ia.plan_deshacer(p)['error'])
+
+    def test_alerta_del_pdf_borrado_con_cambios_aplicados(self):
+        from facturacion import servicios
+        p = self._aplicar_y_borrar_el_archivo()
+        self.assertTrue(any('Contrato Local 1 Ale Anexo.pdf' in t for *_, t in servicios.alertas_vigentes(date(2026, 10, 19), sociedad=self.soc)))
+        ia.deshacer(p, 'matias')
+        self.assertEqual(servicios.archivos_borrados_con_cambios(self.soc), [])
+
+    def test_pantalla_deshacer(self):
+        p = self._aplicar_y_borrar_el_archivo()
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        r = self.client.get(f'/contratos/archivos/?sociedad={self.soc.id}')
+        self.assertContains(r, 'Deshacer sus cambios')
+        self.assertContains(r, 'no deshace')
+        r = self.client.get(f'/contratos/archivos/{self.archivo.pk}/deshacer/')
+        self.assertContains(r, '01-01-2025 → sin término: 27 UF')
+        r = self.client.post(f'/contratos/archivos/{self.archivo.pk}/deshacer/')
+        self.assertRedirects(r, '/contratos/P-01/', fetch_redirect_response=False)
+        self.assertEqual(self.c1.tramos.count(), 1)
+        p.refresh_from_db()
+        self.assertEqual(p.estado, 'X')
+        self.assertNotContains(self.client.get(f'/contratos/archivos/?sociedad={self.soc.id}'), 'Deshacer sus cambios')
+
     def test_crear_contrato_nuevo_desde_la_propuesta(self):
         datos = dict(RESPUESTA, contrato_existente_codigo='', arrendatario_razon_social='Nueva Ltda', arrendatario_rut='22.222.222-2',
                      nombre_fantasia='Nueva', inicio_vigencia='2026-11-01')
@@ -443,6 +529,54 @@ class ActasTest(Base):
         os.remove(actas / 'foto acta.jpg')
         self.assertIn('1 ya no están', carpetas.revisar_actas(self.soc))
         self.assertTrue(ActaEntrega.objects.get(nombre='foto acta.jpg').ya_no_esta)
+
+
+    def _acta_registrada(self):
+        from .models import ActaEntrega
+        actas = self.raiz / 'Actas'
+        _pdf(actas / 'Acta Local 1.pdf')
+        self.soc.carpeta_actas = str(actas)
+        self.soc.save()
+        carpetas.revisar_actas(self.soc)
+        a = ActaEntrega.objects.get()
+        a.contrato, a.fecha_entrega, a.estado = self.c1, date(2026, 9, 2), 'L'
+        a.save()
+        ia.registrar_acta(a, 'op')
+        self.c1.refresh_from_db()
+        self.assertEqual((self.c1.fecha_entrega, self.c1.fecha_inicio_cobro), (date(2026, 9, 2), date(2026, 11, 1)))
+        return a
+
+    def test_deshacer_el_registro_de_un_acta_borrada(self):
+        from facturacion import servicios
+        a = self._acta_registrada()
+        os.remove(self.raiz / 'Actas' / 'Acta Local 1.pdf')
+        carpetas.revisar_actas(self.soc)
+        alertas = [t for *_, t in servicios.archivos_borrados_con_cambios(self.soc)]
+        self.assertTrue(any('Acta Local 1.pdf' in t for t in alertas))
+        self.client.force_login(self.op)
+        self.assertContains(self.client.get(f'/contratos/actas/{a.pk}/'), 'Deshacer el registro')
+        self.client.post(f'/contratos/actas/{a.pk}/', {'accion': 'deshacer'})
+        self.c1.refresh_from_db()
+        a.refresh_from_db()
+        self.assertEqual((a.estado, self.c1.fecha_entrega, self.c1.fecha_inicio_cobro), ('L', None, None))
+        self.assertTrue(RegistroCambio.objects.filter(contrato=self.c1, origen='deshacer acta').exists())
+        self.assertEqual(servicios.archivos_borrados_con_cambios(self.soc), [])
+
+    def test_deshacer_un_acta_registrada_antes_de_este_cambio(self):
+        from .models import ActaEntrega
+        a = self._acta_registrada()
+        ActaEntrega.objects.filter(pk=a.pk).update(antes={})
+        a.refresh_from_db()
+        self.assertTrue(ia.plan_deshacer_acta(a)['antes']['desde_historial'])
+        ia.deshacer_acta(a, 'op')
+        self.c1.refresh_from_db()
+        self.assertIsNone(self.c1.fecha_entrega)
+
+    def test_no_se_deshace_si_la_fecha_cambio_despues(self):
+        a = self._acta_registrada()
+        self.c1.fecha_entrega = date(2026, 9, 10)
+        self.c1.save()
+        self.assertIn('cambió después', ia.plan_deshacer_acta(a)['error'])
 
 
 # ------------------------------------------------------------------ plano de locales

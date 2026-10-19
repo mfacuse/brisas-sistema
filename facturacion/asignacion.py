@@ -10,6 +10,7 @@ from decimal import Decimal as D
 
 from django.conf import settings
 from django.db import close_old_connections, transaction
+from django.utils import timezone
 
 from maestro import ia
 from maestro.models import Contrato
@@ -151,8 +152,8 @@ def confirmar(carga: CargaPlanilla, asignacion: dict, usuario: str):
     if sin_asignar:
         raise ValueError('Faltan por asignar: ' + ', '.join(f'{d["etiqueta"]} {d["nombre"]}' for d in sin_asignar[:8])
                          + '. Elija el contrato o marque «no se cobra».')
-    res = cargas.cargar_filas(a_cargar, carga.periodo_consumo, carga.periodo_cobro, carga.archivo)
-    carga.estado = CargaPlanilla.Estado.CARGADA
+    res = cargas.cargar_filas(a_cargar, carga.periodo_consumo, carga.periodo_cobro, carga.archivo, carga=carga)
+    carga.estado, carga.antes, carga.cargada_en = CargaPlanilla.Estado.CARGADA, res.anteriores, timezone.now()
     carga.resultado = (f'{res.cargados} cargos por ${int(res.total):,}'.replace(',', '.') + (f' · no se cobran: {", ".join(no_cobra)}' if no_cobra else '')
                        + (f' · sin cobro ($0): {", ".join(res.en_cero)}' if res.en_cero else '')
                        + (f' · no van en la factura: {", ".join(de_megaservicios)}' if de_megaservicios else '')

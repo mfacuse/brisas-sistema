@@ -183,6 +183,20 @@ class VinculoTest(Base):
         with self.assertRaises(ValueError):
             emitidas.vincular_manual(FacturaEmitida.objects.get(folio='5150'), fa, 'op')
 
+    def test_si_se_borra_el_pdf_se_desvincula_el_folio(self):
+        fa = self.docs['P-01']
+        _pdf_facturas(self.raiz / 'f.pdf', [self._f('5148', '11.111.111-1', fa.total)])
+        emitidas.revisar(self.soc)
+        fa.refresh_from_db()
+        self.assertEqual(fa.folio, '5148')
+        (self.raiz / 'f.pdf').unlink()
+        r = emitidas.revisar(self.soc)
+        self.assertEqual(r.ya_no_estan, 1)
+        self.assertIn('ya no están en la carpeta', str(r))
+        fa.refresh_from_db()
+        self.assertEqual(fa.folio, '')
+        self.assertFalse(FacturaEmitida.objects.exists())
+
     def test_la_nota_de_cobro_no_se_vincula(self):
         nc = self.docs['P-02']
         _pdf_facturas(self.raiz / 'x.pdf', [self._f('77', '22.222.222-2', nc.total)])
@@ -677,3 +691,82 @@ class AnexoDeRentaTest(Base):
         doc = Documento.objects.get(contrato=self.fa)
         self.assertFalse(any('a la vez' in a for a in doc.advertencias))
         self.assertIn('187,65 UF', doc.lineas.get(origen='RENTA').detalle)
+
+
+class DeshacerCargasTest(Base):
+    """Toda carga de archivo (luz, gas, agua, gastos comunes, otros) se puede deshacer; las facturas emitidas borradas se desvinculan."""
+    _xlsx = AguaYGastosComunesTest._xlsx
+
+    def _ggcc(self, archivo, montos, consumo=date(2026, 9, 1)):
+        from . import asignacion, lectores
+        from .cargas import mes_siguiente
+        ruta = self._xlsx([['Local', 'Arrendatario', 'Neto'], ['L01', 'Ale SpA', montos[0]], ['L02', 'Casa Ltda', montos[1]]])
+        _, filas = lectores.leer_generica(ruta, 'GGCC')
+        carga = asignacion.preparar(self.soc, 'GGCC', filas, consumo, mes_siguiente(consumo), archivo, 'op')
+        asignacion.confirmar(carga, {2: 'P-01', 3: 'P-02'}, 'op')
+        carga.refresh_from_db()
+        return carga
+
+    def setUp(self):
+        Contrato.objects.filter(pk__in=[self.fa.pk, self.nc.pk]).update(cobra_gastos_comunes='INM')
+
+    def _netos(self):
+        from .models import ConsumoServicio
+        return sorted((c.contrato.codigo, int(c.neto)) for c in ConsumoServicio.objects.select_related('contrato'))
+
+    def test_deshacer_una_planilla_quita_sus_cargos_y_devuelve_los_reemplazados(self):
+        from . import cargas
+        primera = self._ggcc('ggcc.xlsx', [100000, 50000])
+        segunda = self._ggcc('ggcc corregida.xlsx', [111000, 55000])   # reemplaza a la primera
+        self.assertEqual(self._netos(), [('P-01', 111000), ('P-02', 55000)])
+        self.assertIn('Deshaga primero esa', cargas.plan_deshacer(primera)['error'])
+        plan = cargas.plan_deshacer(segunda)
+        self.assertEqual((len(plan['quitar']), len(plan['vuelven']), plan['aprobados']), (2, 2, 0))
+        cargas.deshacer(segunda, 'matias')
+        self.assertEqual(self._netos(), [('P-01', 100000), ('P-02', 50000)])   # vuelve la primera planilla
+        segunda.refresh_from_db()
+        self.assertEqual(segunda.estado, 'X')
+        cargas.deshacer(primera, 'matias')   # ahora sí se puede deshacer la primera
+        self.assertEqual(self._netos(), [])
+        servicios.generar_borradores(self.soc, 2026, 10)
+        self.assertFalse(Documento.objects.get(contrato=self.fa).lineas.filter(origen='GGCC').exists())
+        with self.assertRaises(ValueError):
+            cargas.deshacer(primera, 'matias')
+
+    def test_deshacer_una_carga_de_antes_de_este_cambio(self):
+        from . import cargas
+        from .models import ConsumoServicio
+        carga = self._ggcc('ggcc.xlsx', [100000, 50000])
+        ConsumoServicio.objects.update(carga=None)   # las cargas antiguas no guardaban el vínculo
+        type(carga).objects.filter(pk=carga.pk).update(cargada_en=None)
+        carga.refresh_from_db()
+        cargas.deshacer(carga, 'matias')
+        self.assertEqual(self._netos(), [])
+
+    def test_avisa_los_documentos_ya_aprobados(self):
+        from . import cargas
+        carga = self._ggcc('ggcc.xlsx', [100000, 50000])
+        self.generar_y_aprobar(10)
+        self.assertEqual(cargas.plan_deshacer(carga)['aprobados'], 2)
+
+    def test_otros_cargos_y_pantallas(self):
+        from .models import CargaPlanilla
+        Group.objects.get_or_create(name='Operación')
+        u = User.objects.create_user('op', password='x')
+        u.groups.add(Group.objects.get(name='Operación'))
+        self.client.force_login(u)
+        ruta = self._xlsx([['Contrato', 'Concepto', 'Detalle', 'Neto $', 'Mes de cobro'], ['P-01', 'HABILITACION', 'cuota 1', 25000, '2026-10']])
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        with open(ruta, 'rb') as fh:
+            self.client.post('/cargas/archivo/', {'tipo': 'otros', 'sociedad': self.soc.id, 'periodo': '2026-10',
+                                                  'archivo': SimpleUploadedFile('otros.xlsx', fh.read())})
+        self.assertEqual(self._netos(), [('P-01', 25000)])
+        carga = CargaPlanilla.objects.get(servicio='OTRO')
+        r = self.client.get(f'/cargas/?sociedad={self.soc.id}&periodo=2026-10')
+        self.assertContains(r, 'otros.xlsx')
+        self.assertContains(r, f'/cargas/planilla/{carga.pk}/deshacer/')
+        self.assertContains(self.client.get(f'/cargas/planilla/{carga.pk}/deshacer/'), 'se quita')
+        self.client.post(f'/cargas/planilla/{carga.pk}/deshacer/')
+        self.assertEqual(self._netos(), [])
+        self.assertNotContains(self.client.get(f'/cargas/?sociedad={self.soc.id}&periodo=2026-10'), f'/cargas/planilla/{carga.pk}/deshacer/')
+

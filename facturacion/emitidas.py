@@ -193,6 +193,7 @@ class ResumenEmitidas:
     dudosas: int = 0
     sin_documento: int = 0
     ilegibles: int = 0
+    ya_no_estan: int = 0
     error: str = ''
 
     def __str__(self):
@@ -200,10 +201,11 @@ class ResumenEmitidas:
             return f'{self.sociedad}: {self.error}'
         if not self.carpeta:
             return f'{self.sociedad}: sin carpeta de facturas emitidas configurada'
+        quitadas = f' · {self.ya_no_estan} facturas ya no están en la carpeta (se quitaron y su folio se desvinculó)' if self.ya_no_estan else ''
         if not self.archivos_leidos:
-            return f'{self.sociedad}: sin facturas nuevas'
+            return f'{self.sociedad}: sin facturas nuevas{quitadas}'
         return (f'{self.sociedad}: {self.archivos_leidos} PDF nuevos o cambiados, {self.facturas} facturas · {self.vinculadas} vinculadas, '
-                f'{self.dudosas} para revisar, {self.sin_documento} sin documento, {self.ilegibles} ilegibles')
+                f'{self.dudosas} para revisar, {self.sin_documento} sin documento, {self.ilegibles} ilegibles{quitadas}')
 
 
 def revisar(sociedad) -> ResumenEmitidas:
@@ -219,6 +221,7 @@ def revisar(sociedad) -> ResumenEmitidas:
     except Exception as e:
         res.error = f'no se pudo leer la carpeta ({e})'
         return res
+    res.ya_no_estan = quitar_desaparecidas(sociedad, {e.ruta for e in entradas})
     for ent in entradas:
         previas = FacturaEmitida.objects.filter(sociedad=sociedad, ruta=ent.ruta)
         if previas.exists() and all(p.tamano == ent.tamano and p.modificado == ent.modificado for p in previas):
@@ -226,6 +229,18 @@ def revisar(sociedad) -> ResumenEmitidas:
         res.archivos_leidos += 1
         _leer_archivo(sociedad, ent.ruta, ent.nombre, ent.tamano, ent.modificado, res)
     return res
+
+
+@transaction.atomic
+def quitar_desaparecidas(sociedad, rutas) -> int:
+    """Facturas cuyo PDF se borró o se sacó de la carpeta: se desvincula su folio del documento y se quitan (si el PDF vuelve, se lee de nuevo)."""
+    n = 0
+    for fe in FacturaEmitida.objects.filter(sociedad=sociedad).exclude(ruta__in=rutas).select_related('documento'):
+        if fe.documento_id:
+            desvincular(fe, '')
+        fe.delete()
+        n += 1
+    return n
 
 
 @transaction.atomic
